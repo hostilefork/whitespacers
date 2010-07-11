@@ -1,14 +1,14 @@
-REBOL [
+Rebol [
 	Title: "Whitespace Intepreter"
 	Purpose: "Whitespace Language Written as a Rebol 3 Parse Dialect"
 	
 	Author: "Hostile Fork"
-	Home: http://hostilefork.com/
+	Home: http://github.com/hostilefork/whitespacers/
 	License: 'mit
 	
 	File: %whitespace.r
-	Date: 8-Oct-2009
-	Version: 0.1.0
+	Date: 10-Jul-2010
+	Version: 0.2.0
 	
 	Header conventions: http://www.rebol.org/one-click-submission-help.r
 	Type: 'fun
@@ -42,8 +42,8 @@ REBOL [
 			BABB mod
 			BBA store
 			BBB retrieve
-			CAAl set_label
-			CABl call_label
+			CAAl set_Label
+			CABl call_Label
 			CACl jump
 			CBAl jump_ifzero
 			CBBl jump_negative
@@ -69,7 +69,7 @@ REBOL [
 			}
 			
 			mark-location: [
-				command: [space space label]
+				command: [space space Label]
 				description: {Mark a location in the program}
 			]
 			
@@ -83,13 +83,13 @@ REBOL [
 	When the evaluator runs it turns that into the following sequence
 	that the parse dialect can scan for:
 	
-		[lf] [space space label]
+		[lf] [space space Label]
 	
 	Even the fairly elegant Haskell is more obtuse in its match rule, if
 	you choose to dig into its source code:
 	
 		parse (C:A:A:xs) = let (string,rest) = parseString xs in
-			(label string):(parse rest)
+			(Label string):(parse rest)
 	
 	What's beautiful about the Rebol is that working in the more natural
 	style of expression isn't a trick.  I didn't spend hours building 
@@ -99,8 +99,8 @@ REBOL [
 		print rejoin ["Hello" space "World"]
 	
 	That really would print "Hello World".  Moreover, the parse language
-	is actually using jump-if-zero/command to detect the patterns.
-	On top of that, label really is a pattern for recognizing whitespace
+	is actually using mark-location/command to detect the patterns.
+	On top of that, Label really is a pattern for recognizing whitespace
 	label strings.  Nothing up our sleeves here!
 	
 	Truthfully the people who wrote the Perl and Haskell could have been
@@ -108,7 +108,8 @@ REBOL [
 	such coding that you do is trapped within the metaphors you are given.
 	You end up putting your internal specs into strings and
 	parsing them.  Why not skip the middleman and use structural
-	expression?  Especially when it's free.
+	expression, which can be reflected out as debugging information...
+	for free?!
 	
 	As an added gimmick, I did more than just use Rebol's parse dialect 
 	to analyze the whitespace sequences.  It's also the virtual machine!!!
@@ -136,6 +137,9 @@ REBOL [
 		step to show the power of dialecting but I haven't done it yet.
 		Probably quite buggy as I only tested it with one example, but
 		proves the concept.} "Fork"]
+		0.2.0 [10-Jul-2010 {Public release as part of a collection of
+		whitespace interpreters in various languages collected from
+		around the web.}]
 	]
 ]
 
@@ -252,28 +256,28 @@ Flow-Control: [
 	}
 	
 	mark-location: [
-		command: [space space label]
+		command: [space space Label]
 		description: {Mark a location in the program}
 	]
 	
 	call-subroutine: [
-		command: [space tab label]
+		command: [space tab Label]
 		description: {Call a subroutine}
 	]
 
 	jump-to-label: [
-		command: [space lf label]
-		description: {Jump unconditionally to a label}
+		command: [space lf Label]
+		description: {Jump unconditionally to a Label}
 	]
 
 	jump-if-zero: [
-		command: [tab space label]
-		description: {Jump to a label if the top of the stack is zero}
+		command: [tab space Label]
+		description: {Jump to a Label if the top of the stack is zero}
 	]
 
 	jump-if-negative: [
-		command: [tab tab label]
-		description: {Jump to a label if the top of the stack is negative}
+		command: [tab tab Label]
+		description: {Jump to a Label if the top of the stack is negative}
 	]
 	
 	return-from-subroutine: [
@@ -333,7 +337,7 @@ callstack: []
 ; a map is probably not ideal
 heap: make map! [] 
 
-; from label # to program character index
+; from Label # to program character index
 labels: make map! [] 
 
 binary-string-to-int: func [s [string!] /local pad] [
@@ -425,9 +429,9 @@ do-heap-retrieve: [
 ]
 
 lookup-label-offset: func [label [integer!]] [
-	address: select labels param
+	address: select labels label
 	if none? address [
-		print ["RUNTIME ERROR: Jump to undefined label #" param]
+		print ["RUNTIME ERROR: Jump to undefined Label #" label]
 		quit
 	]
 	return address
@@ -507,7 +511,7 @@ Number: [
 
 ; according to the spec, labels are simply [lf] terminated 
 ; lists of spaces and tabs.  So treating them as Numbers is fine.
-label: Number
+Label: Number
 
 pass: 1
 
@@ -540,7 +544,7 @@ whitespace-language: [
 			)
 			
 			| Stack-Manipulation/duplicate-top/command (
-				instruction: compose [duplicate-top]
+				instruction: [duplicate-top]
 			)
 			
 			| Stack-Manipulation/duplicate-indexed/command (
@@ -548,11 +552,11 @@ whitespace-language: [
 			)
 			
 			| Stack-Manipulation/swap-top-2/command (
-				instruction: compose [swap-top-2]
+				instruction: [swap-top-2]
 			)
 			
 			| Stack-Manipulation/discard-top/command (
-				instruction: compose [discard-top]
+				instruction: [discard-top]
 			)
 			
 			| Stack-Manipulation/slide-n-values/command (
@@ -562,33 +566,33 @@ whitespace-language: [
 		
 		| Arithmetic/IMP [
 			Arithmetic/add/command (
-				instruction: compose [do-arithmetic 'add]
+				instruction: [do-arithmetic 'add]
 			)
 			
 			| Arithmetic/subtract/command (
-				instruction: compose [do-arithmetic 'subtract]
+				instruction: [do-arithmetic 'subtract]
 			)
 			
 			| Arithmetic/multiply/command (
-				instruction: compose [do-arithmetic 'multiply]
+				instruction: [do-arithmetic 'multiply]
 			)
 			
 			| Arithmetic/divide/command (
-				instruction: compose [do-arithmetic 'divide]
+				instruction: [do-arithmetic 'divide]
 			)
 			
 			| Arithmetic/modulo/command (
-				instruction: compose [do-arithmetic 'mod]
+				instruction: [do-arithmetic 'mod]
 			)
 		]
 		
 		| Heap-Access/IMP [
 			Heap-Access/store/command (
-				instruction: compose [do-heap-store]
+				instruction: [do-heap-store]
 			)
 			
 			| Heap-Access/retrieve/command (
-				instruction: compose [do-heap-retrieve]
+				instruction: [do-heap-retrieve]
 			)
 		]
 		
@@ -609,33 +613,33 @@ whitespace-language: [
 			)
 			
 			| Flow-Control/jump-to-label/command (
-				instruction: compose [jump-to-label]
+				instruction: [jump-to-label]
 			)
 			
 			| Flow-Control/jump-if-zero/command (
-				instruction: compose [jump-if-zero]
+				instruction: [jump-if-zero]
 			)
 		
 			| Flow-Control/jump-if-negative/command (
-				instruction: compose [jump-if-negative]
+				instruction: [jump-if-negative]
 			)
 			
 			| Flow-Control/return-from-subroutine/command (
-				instruction: compose [return-from-subroutine]	
+				instruction: [return-from-subroutine]	
 			)
 		
 			| Flow-Control/end-program/command (
-				instruction: compose [end-program]
+				instruction: [end-program]
 			)
 		]
 
 		| IO/IMP [
 			IO/output-character-on-stack/command (
-				instruction: compose [output-character-on-stack] 
+				instruction: [output-character-on-stack] 
 			)
 			
 			| IO/output-number-on-stack/command (
-				instruction: compose [output-number-on-stack]
+				instruction: [output-number-on-stack]
 			)
 			
 			; input routines not implemented yet
@@ -676,7 +680,7 @@ whitespace-language: [
 					; now we capture the end of this instruction...
 					repend instruction [offset? program-start instruction-end]
 
-					; the first pass does the label markings...
+					; the first pass does the Label markings...
 					do instruction
 				]
 			] [
@@ -730,7 +734,7 @@ program: rejoin [
 	; Put a 1 on the stack
 	space space space tab lf 	 
 
-	; Set a label at this point
+	; Set a Label at this point
 	lf space space space tab space space  space space tab tab lf 
 
 	; Duplicate the top stack item
@@ -766,7 +770,7 @@ program: rejoin [
 	; Jump to the start	
 	lf space lf space tab space  space space space tab tab lf
 
-	; Set the end label	
+	; Set the end Label	
 	lf space space space tab space  space space tab space tab lf
 
 	; Discard our accumulator, to be tidy
@@ -789,14 +793,14 @@ print program
 print separator
 
 ;
-; label SCANNING pass
+; LABEL SCANNING PASS
 ;
 ; We have to scan the program for labels before we run it
 ; Also this tells us if all the constructions are valid
 ; before we start running
 ;
 
-print "label SCAN PHASE"
+print "LABEL SCAN PHASE"
 
 pass: 1
 if not parse program whitespace-language [
@@ -808,7 +812,7 @@ print mold labels
 print separator
 
 ;
-; PROGRAM EXECUTION pass
+; PROGRAM EXECUTION PASS
 ;
 ; The Rebol parse dialect has the flexibility to do arbitrary
 ; seeks to locations in the input.  This makes it possible to
