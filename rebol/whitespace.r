@@ -4,15 +4,15 @@ REBOL [
 	
 	Author: "Hostile Fork"
 	Home: http://hostilefork.com/
-	License: mit
+	License: 'mit
 	
 	File: %whitespace.r
 	Date: 8-Oct-2009
 	Version: 0.1.0
 	
 	Header conventions: http://www.rebol.org/one-click-submission-help.r
-	Type: fun
-	Level: intermediate
+	Type: 'fun
+	Level: 'intermediate
 	
 	Description: {This is an interpreter for the Whitespace language:
 	
