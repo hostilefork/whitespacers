@@ -1,0 +1,2686 @@
+{-
+options
+
+print_trace      print each instruction when it is run
+
+-}
+
+
+
+
+include io
+include memory
+
+{-
+
+;global variables
+; var 0-19 are reserved for local vars
+; var 20: start of code
+; var 21: end of code
+; var 22: start of byte_compiled_code
+; var 23: end of byte_compiled_code
+; var 24: start of instruction_compiled_code
+; var 25: end of instruction_compiled_code
+; var 26: start of stack
+; var 27: end of stack ;not included
+; var 28: start of heap
+; var 29: end of heap ;not included
+; var 40-60 are reserved for local vars
+; var 100-... is reserved for big data
+-}
+
+label main
+  call run
+  ret
+
+label run
+  call intro
+
+;pushs "beginning reading"
+;call printsln
+
+
+; read program
+  push 20
+  push 100
+store
+
+  push 20
+retrive
+
+call read_program
+
+  push 21
+  swap
+store
+
+  push 22
+      push 21
+    retrive
+    push 10
+  add
+store
+
+pushs "-- WS Interpreter WS -------------------------------------------"
+call printsln
+
+;pushs "compiling to byte code"
+;call printsln
+
+  push 20
+retrive
+  push 21
+retrive
+  push 22
+retrive
+
+call compile_byte_code
+
+  push 23
+  swap
+store
+
+  push 24
+      push 23
+    retrive
+    push 10
+  add
+store
+
+;pushs "compiling to instruction code"
+;call printsln
+
+
+
+  push 22
+retrive
+  push 23
+retrive
+  push 24
+retrive
+
+call compile_instruction_code
+
+  push 25
+  swap
+store
+
+;pushs "compiling labels"
+;call printsln
+
+call compile_labels
+
+
+
+;pushs "creating stack"
+;call printsln
+
+  push 26
+      push 25
+    retrive
+    push 10
+  add
+store ;stack start
+
+  push 27
+    push 26
+  retrive
+store ;stack end ;same as start
+
+    push 26
+  retrive
+  push 10
+call mem_zero
+
+;pushs "creating heap"
+;call printsln
+
+  push 28
+      push 27
+    retrive
+    push 10
+  add
+store ;heap start
+
+  push 29
+    push 28
+  retrive
+store ; heap end
+
+    push 28
+  retrive
+  push 10
+call mem_zero
+
+;pushs "starting to interpret"
+;call printsln
+
+ifoption print_compilation
+debug_printheap
+endoption
+
+call interpret
+
+exit
+
+
+
+
+
+; the label data has the number of the label it refers to at the beginning
+; this funktion replaces it by the actual adress of the data
+; parameter
+; return
+; variables
+label compile_labels
+
+	push 24
+retrive
+
+label compile_labels_loop
+
+  doub
+    push 25
+  retrive
+sub
+jumppz compile_labels_end_pop
+
+	doub
+retrive ; got the type
+
+test 8
+jumpz compile_labels_is_label
+
+test 9
+jumpz compile_labels_is_label
+
+test 10
+jumpz compile_labels_is_label
+
+test 11
+jumpz compile_labels_is_label
+
+
+pop
+
+add 2 ; ++ pointer
+
+jump compile_labels_loop
+
+label compile_labels_is_label
+pop
+
+	doub
+add 1
+
+	doub
+retrive
+
+	call get_label_ip
+store
+
+
+add 2 ; ++ pointer
+
+jump compile_labels_loop
+
+
+label compile_labels_end_pop
+pop
+
+ret
+
+
+
+
+
+; find label
+; parameter
+;  [1] label
+; return
+;  [1] ip
+; variable (are saved)
+;  [1] label
+
+label get_label_ip
+
+	push 1
+retrive
+; save 1
+
+swap
+
+		push 1
+	swap
+store
+
+
+	push 24
+retrive
+
+label get_label_ip_loop
+  doub
+    push 25
+  retrive
+sub
+jumppz get_label_ip_end_pop
+
+	doub
+retrive ; got the type
+
+test 7
+jumpz get_label_ip_is_label
+
+
+pop
+
+add 2 ; ++ pointer
+
+jump get_label_ip_loop
+
+label get_label_ip_is_label
+pop
+
+			doub
+		add 1
+  retrive
+    push 1
+  retrive
+sub
+jumpz get_label_ip_found_label
+
+add 2 ; ++ pointer
+jump get_label_ip_loop
+
+
+
+label get_label_ip_found_label
+swap
+push 1
+swap
+store
+;restore [1]
+
+ret
+
+
+
+label get_label_ip_end_pop
+pop
+
+pushs "error: label not found: "
+call prints
+retrive 1
+outN
+push 0
+call printsln
+
+push 1
+store
+;restore [1]
+
+push 0
+
+exit
+;ret
+
+
+
+
+
+
+
+
+
+; parameter
+; [1] new item
+; value
+label stack_push_back
+    push 27
+      retrive 27;old stack end
+    add 1; new stack end
+  store
+	; just set new and and let the memory arrange
+
+  call memory_arrange
+
+				retrive 27
+			sub 1 ;ptr to back
+		swap
+	store
+	; save new item
+
+  ret
+
+
+; parameter
+; [1] new item
+; value
+label stack_push_front
+    push 26
+      retrive 26;old stack start
+    sub 1; new stack start
+  store
+	; just set new and and let the memory arrange
+
+  call memory_arrange
+
+      retrive 26
+		swap
+	store
+	; save new item
+
+  ret
+
+
+
+
+
+
+
+; parameter
+; return
+; [1] value
+label stack_pop_back
+      retrive 26 ;start of stack
+      retrive 27 ;end of stack
+    sub
+    jumpz stack_pop_back_error_empty
+
+          push 27 ;end of stack
+        retrive
+        push 1
+      sub ; last element
+    retrive
+
+
+          push 27 ;end of stack
+        retrive
+        push 1
+      sub ; last element
+			push 0
+		store
+		; erase old element
+
+			push 27
+          push 27 ;end of stack
+        retrive
+        push 1
+      sub
+    store
+
+		call memory_arrange
+		ret
+
+
+    label stack_pop_back_error_empty
+    pushs "error: stack_pop_back and stack empty"
+    call printsln
+		push -1
+		ret
+
+; parameter
+; return
+; [1] value
+label stack_pop_front
+        push 26 ;start of stack
+      retrive
+        push 27 ;end of stack
+      retrive
+    sub
+    jumpz stack_pop_front_error_empty
+
+  	      push 26 ;start of stack
+	      retrive ; first element
+      retrive
+
+        push 26 ;start of stack
+      retrive ; first element
+			push 0
+		store
+		; erase old element
+
+			push 26
+          push 26 ;end of stack
+        retrive
+        push 1
+      add
+    store
+
+		call memory_arrange
+		ret
+
+
+    label stack_pop_front_error_empty
+    pushs "error: stack_pop_front and stack empty"
+    call printsln
+		push -1
+		ret
+
+
+; makes sure the address is available in heap (resizing it if necessary)
+; parameter
+;  [1] address
+label heap_extend_to_address
+	doub
+	jumpn heap_extend_to_address_done_pop ;error !! negative address
+
+;      doub
+      retrive 28 ;heap start
+    add
+	  retrive 29 ;heap end
+	sub
+	add 1
+	; add xxx allocate xxx byte additional for seldom realloc
+	doub
+	jumpnz heap_extend_to_address_done_pop
+;	jumpn heap_extend_to_address_done_pop
+;	doub
+;	jumpz heap_extend_to_address_done_pop
+
+      doub
+        push 29
+      retrive
+    swap
+	call mem_zero ;zero the new memory
+
+        doub
+          push 29
+        retrive
+      add
+      push 29
+		swap
+	store ;store new memory end
+
+	label heap_extend_to_address_done_pop
+	pop
+	ret
+
+
+
+; parameter
+;  [2] address
+;  [1] value
+; return
+label heap_store
+
+
+;	pushs "heap_store addr "
+;	call prints
+;	swap
+;	doub
+;	outn
+;	pushs " val "
+;	call prints
+;	swap
+;	doub
+;	outn
+
+
+;	debug_printheap
+
+	swap
+	doub
+	jumpn heap_store_negative_address
+
+	doub
+
+;	debug_printstack
+	call heap_extend_to_address
+;	debug_printstack
+;	debug_printheap
+
+;	debug_printstack
+
+	    push 28 ;heap start
+	  retrive
+	add
+
+		swap
+
+;	debug_printstack
+
+	store
+;	debug_printheap
+;	call interpreter_debug_printheap
+
+	ret
+
+	label heap_store_negative_address
+	pushs "error: heap store, negative address: "
+	call printsln
+	outN
+	pop
+	ret
+
+
+; parameter
+;  [1] address
+; return
+;  [1] value
+label heap_retrive
+
+	doub
+	jumpn heap_retrive_address_negative
+
+	    push 28 ;heap start
+	  retrive
+	add
+
+	doub
+	    push 29 ;heap end
+	  retrive
+	  swap
+	sub
+	jumpnz heap_retrive_address_to_big
+;	debug_printstack
+	retrive
+;	debug_printstack
+
+	ret
+
+	label heap_retrive_address_negative
+	pushs "error: heap retrive: address negative: "
+	call prints
+	outN
+	push 0
+	call printsln
+	push 0
+	ret
+
+	label heap_retrive_address_to_big
+	pushs "error: heap retrive: address too big: "
+	call prints
+	outN
+	push 0
+	call printsln
+	push 0
+	ret
+
+
+
+
+
+
+
+
+; rearranges the stack and heap
+; after calling this you can be sure of:
+; code_inst_end < stack_start < stack_end < heap_start < heap_end
+; 10 < code_inst_end - stack_start < 100
+; 10 < stack_end - heap_start < 100
+;variables (saved)
+; [1] stack_start
+; [2] stack_end
+; [3] stack_length
+; [4] heap_start
+; [5] heap_end
+; [6] heap_length
+
+label memory_arrange
+		push 1
+	retrive
+		push 2
+	retrive
+		push 3
+	retrive
+		push 4
+	retrive
+		push 5
+	retrive
+		push 6
+	retrive
+	; save the vars
+
+	push 3
+				push 27
+			retrive
+				push 26
+			retrive
+		sub
+	store
+	; get stack length
+
+	push 6
+				push 29
+			retrive
+				push 28
+			retrive
+		sub
+	store
+	; get heap length
+
+	;code_inst_end + 10 > stack_start
+	;code_inst_end + 100 < stack_start
+	;	 stack_start = code_inst_end + 20
+	;else
+	;	 stack_start = old stack_start
+
+	; stack_end = stack_start + stack_length
+
+				push 26
+			retrive ; stack_start
+				push 25
+			retrive ; code_inst_end
+			push 10
+		add
+	sub
+	jumpn memory_arrange_set_stack_start
+
+        push 25 ; code_inst_end
+      retrive
+      push 100
+    add
+      push 26 ; stack start
+    retrive
+  sub
+	jumpn memory_arrange_set_stack_start
+
+	jump memory_arrange_old_stack_start
+
+	label memory_arrange_old_stack_start
+		push 1
+			push 26
+		retrive
+	store
+	jump memory_arrange_calc_heap
+
+	label memory_arrange_set_stack_start
+		push 1
+        push 25
+      retrive
+      push 20
+		add
+	store
+	jump memory_arrange_calc_heap
+
+
+	label memory_arrange_calc_heap
+		push 2 ;end
+        push 1
+      retrive ;start
+        push 3
+      retrive ;length
+		add
+	store
+
+
+	;stack_end + 10 > heap_start
+	;stack_end + 100 < heap_start
+	;	 heap_start = stack_end + 20
+	;else
+	;	 heap_start = old heap_start
+
+				push 28
+			retrive ; heap_start
+				push 27
+			retrive ; stack_end
+			push 10
+		add
+	sub
+	jumpn memory_arrange_set_heap_start
+
+        push 27 ; stack_end
+      retrive
+      push 100
+    add
+      push 28 ; heap start
+    retrive
+  sub
+	jumpn memory_arrange_set_heap_start
+
+	jump memory_arrange_old_heap_start
+
+	label memory_arrange_old_heap_start
+		push 4
+			push 28
+		retrive
+	store
+	jump memory_arrange_calc_heap_end
+
+	label memory_arrange_set_heap_start
+		push 4
+        push 27
+      retrive
+      push 20
+		add
+	store
+	jump memory_arrange_calc_heap_end
+
+
+	label memory_arrange_calc_heap_end
+		push 5 ;end
+        push 4
+      retrive ;start
+        push 6
+      retrive ;length
+		add
+	store
+
+; save [1]-[3]
+	retrive 1
+	retrive 2
+	retrive 3
+
+	; move heap to heap_start
+		push 26 ; stack start
+	retrive ;source
+		push 1 ; new stack start
+	retrive ;dest
+		push 3
+	retrive ; length
+	call mem_move
+
+; restore [1]-[3]
+	store 3
+	store 2
+	store 1
+
+
+	push 26
+			push 1
+		retrive
+	store
+
+	push 27
+			push 2
+		retrive
+	store
+
+; save [1]-[3]
+	retrive 1
+	retrive 2
+	retrive 3
+
+	; move stack to stack_start
+		push 28 ; stack start
+	retrive ;source
+		push 4 ; new stack start
+	retrive ;dest
+		push 6
+	retrive ; length
+	call mem_move
+
+; restore [1]-[3]
+	store 3
+	store 2
+	store 1
+
+	push 28
+			push 4
+		retrive
+	store
+
+	push 29
+			push 5
+		retrive
+	store
+
+
+
+
+			push 6
+		swap
+	store
+			push 5
+		swap
+	store
+			push 4
+		swap
+	store
+			push 3
+		swap
+	store
+			push 2
+		swap
+	store
+			push 1
+		swap
+	store
+	; restore the vars
+	ret
+
+
+
+
+; parameter:
+; return
+;
+; variables
+; [1] inst code pointer
+; [2] inst code
+; [3] data code
+label interpret
+    push 1
+      push 24
+    retrive
+  store
+
+;	debug_printheap
+
+	label interpret_start
+
+	jump interpret_next
+
+	label interpret_next_pop
+	pop
+
+	label interpret_next
+
+;	pushs " "
+;	call printsln
+
+;    retrive 1
+;  outn
+
+    retrive 1
+  jumpn interpret_end
+
+    retrive 1
+    retrive 25
+	sub
+  jumpp interpret_end
+
+
+          push 1
+      retrive
+    retrive
+    ; get inst
+
+        doub
+        push 2
+	    swap
+    store
+
+	    push 3
+          retrive 1
+        add 1
+      retrive
+    store ; get data
+
+    push 1
+  	    retrive 1
+	    add 2
+    store
+    ; next ip
+
+
+	ifoption trace_stack
+		call interpreter_debug_printstack
+	endoption
+
+	ifoption trace_heap
+		call interpreter_debug_printheap
+	endoption
+
+	test 1
+	jumpz interpret_push
+
+	test 2
+	jumpz interpret_pop
+
+	test 3
+	jumpz interpret_doub
+
+	test 4
+	jumpz interpret_swap
+
+	test 5
+	jumpz interpret_store
+
+	test 6
+	jumpz interpret_retrive
+
+	test 7
+	jumpz interpret_label
+
+	test 8
+	jumpz interpret_call
+
+	test 9
+	jumpz interpret_jump
+
+	test 10
+	jumpz interpret_jumpz
+
+	test 11
+	jumpz interpret_jumpn
+
+	test 12
+	jumpz interpret_ret
+
+	test 13
+	jumpz interpret_exit
+
+	test 14
+	jumpz interpret_add
+
+	test 15
+	jumpz interpret_sub
+
+	test 16
+	jumpz interpret_mul
+
+	test 17
+	jumpz interpret_div
+
+	test 18
+	jumpz interpret_mod
+
+	test 19
+	jumpz interpret_outc
+
+	test 20
+	jumpz interpret_outn
+
+	test 21
+	jumpz interpret_inc
+
+	test 22
+	jumpz interpret_inn
+
+	test 23
+	jumpz interpret_debugprintstack
+
+	test 24
+	jumpz interpret_debugprintheap
+
+	jump  interpret_parse_error
+
+	label  interpret_parse_error
+	;debug_printstack
+	pushs "error: unknown instruction code "
+	call prints
+	outN
+	push 0
+	call printsln
+
+	jump interpret_end
+
+
+
+	label interpret_push
+		retrive 3
+
+		ifoption print_trace
+			pushs "push "
+			call prints
+			doub
+			outn
+			push 0
+			call printsln
+		endoption
+
+		call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_pop
+		ifoption print_trace
+			pushs "pop"
+			call printsln
+		endoption
+
+	  call stack_pop_back
+	jump interpret_next_pop
+
+	label interpret_label
+		ifoption print_trace
+			pushs "label"
+			call printsln
+		endoption
+
+	jump interpret_next_pop
+
+	label interpret_doub
+		ifoption print_trace
+			pushs "doub"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		doub
+		call stack_push_back
+		call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_swap
+		ifoption print_trace
+			pushs "swap"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		call stack_pop_back
+		swap
+		call stack_push_back
+		call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_store
+		ifoption print_trace
+			pushs "store"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		call stack_pop_back
+		swap
+		call heap_store
+	jump interpret_next_pop
+
+	label interpret_retrive
+		ifoption print_trace
+			pushs "retrive"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		call heap_retrive
+		call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_call
+		ifoption print_trace
+			pushs "call"
+			call printsln
+		endoption
+
+        push 1
+      retrive ; next ip to jump over data
+		call stack_push_front
+
+				push 3
+			retrive
+
+  		  push 1
+	    swap
+    store
+
+	jump interpret_next_pop
+
+	label interpret_jump
+		ifoption print_trace
+			pushs "jump"
+			call printsln
+		endoption
+
+				push 3
+			retrive
+
+  		  push 1
+	    swap
+    store
+	jump interpret_next_pop
+
+	label interpret_jumpz
+		ifoption print_trace
+			pushs "jumpz"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		jumpz interpret_jump
+	jump interpret_next_pop
+
+	label interpret_jumpn
+		ifoption print_trace
+			pushs "jumpn"
+			call printsln
+		endoption
+
+		call stack_pop_back
+		jumpn interpret_jump
+	jump interpret_next_pop
+
+	label interpret_ret
+		ifoption print_trace
+			pushs "ret"
+			call printsln
+		endoption
+
+		call stack_pop_front
+
+			push 1
+			swap
+		store
+	jump interpret_next_pop
+
+	label interpret_exit
+		ifoption print_trace
+			pushs "exit"
+			call printsln
+		endoption
+
+	exit
+	jump interpret_next_pop
+
+	label interpret_add
+		ifoption print_trace
+			pushs "add"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	call stack_pop_back
+	swap
+	add
+	call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_sub
+		ifoption print_trace
+			pushs "sub"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	call stack_pop_back
+	swap
+	sub
+	call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_mul
+		ifoption print_trace
+			pushs "mul"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	call stack_pop_back
+	swap
+	mul
+	call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_div
+		ifoption print_trace
+			pushs "div"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	call stack_pop_back
+	swap
+	div
+	call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_mod
+		ifoption print_trace
+			pushs "mod"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	call stack_pop_back
+	swap
+	mod
+	call stack_push_back
+	jump interpret_next_pop
+
+	label interpret_outc
+		ifoption print_trace
+			pushs "outc"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	outc
+	jump interpret_next_pop
+
+	label interpret_outn
+		ifoption print_trace
+			pushs "outn"
+			call printsln
+		endoption
+
+	call stack_pop_back
+	outn
+	jump interpret_next_pop
+
+	label interpret_inc
+		ifoption print_trace
+			pushs "inc"
+			call printsln
+		endoption
+
+	call stack_pop_back
+
+		push 8
+	inc
+	retrive 8
+
+	call heap_store
+
+	jump interpret_next_pop
+
+	label interpret_inn
+		ifoption print_trace
+			pushs "inn"
+			call printsln
+		endoption
+
+	call stack_pop_back
+
+		push 8
+	inn
+	retrive 8
+
+	call heap_store
+	jump interpret_next_pop
+
+	label interpret_debugprintstack
+		ifoption print_trace
+			pushs "debug_printstack"
+			call printsln
+		endoption
+
+	call interpreter_debug_printstack
+	jump interpret_next_pop
+
+	label interpret_debugprintheap
+		ifoption print_trace
+			pushs "debug_printheap"
+			call printsln
+		endoption
+
+	call interpreter_debug_printheap
+	jump interpret_next_pop
+
+
+
+	label interpret_end
+	ret
+
+
+
+
+
+label interpreter_debug_printheap
+	pushs "Heap: ["
+	call prints
+
+		push 28
+	retrive ; heap start
+
+	label interpret_debugprintheap_loop
+    doub
+      push 29
+    retrive ; heap end
+	sub
+	jumpz interpret_debugprintheap_loop_end
+
+	;???
+	;	doub
+	;outN
+
+		doub
+	retrive
+
+	outN
+	pushs ","
+	call prints
+
+	add 1
+	jump interpret_debugprintheap_loop
+
+	label interpret_debugprintheap_loop_end
+
+	pop
+
+	pushs "]"
+	call printsln
+	ret
+
+
+
+
+
+
+
+label interpreter_debug_printstack
+	pushs "Stack: ["
+	call prints
+
+		push 26
+	retrive ; stack start
+
+	label interpret_debugprintstack_loop
+   doub
+      push 27
+    retrive ; stack end
+	sub
+	jumpz interpret_debugprintstack_loop_end
+
+		doub
+	retrive
+
+	outN
+	pushs ","
+	call prints
+
+	add 1
+	jump interpret_debugprintstack_loop
+
+	label interpret_debugprintstack_loop_end
+
+	pop
+
+	pushs "]"
+	call printsln
+	ret
+
+
+
+
+label intro
+    pushs "WhiteSpace interpreter written in Whitespace"
+    call printsln
+    pushs "Made by Oliver Burghard Smarty21@gmx.net"
+    call printsln
+    pushs "in his free time for your and his joy"
+    call printsln
+    pushs "good time and join me to get Whitespace ready for business"
+    call printsln
+    pushs "For any other information dial 1-900-WHITESPACE"
+    call printsln
+    pushs "Or get soon info at www.WHITESPACE-WANTS-TO-BE-TAKEN-SERIOUS.org"
+    call printsln
+    pushs "please enter the program and terminate via 3xEnter,'quit',3xEnter"
+    call printsln
+	ret
+
+
+
+
+
+
+; parameter:
+; [1] start byte code
+; [2] end byte code
+; [3] start inst code
+; return
+; [1] end inst code
+;
+; variables
+; [1] start byte code
+; [2] end byte code
+; [3] start inst code
+; [4] byte code pointer
+; [5] inst code pointer
+label compile_instruction_code
+
+    push 3
+  swap
+store
+
+    push 2
+  swap
+store
+
+    push 1
+  swap
+store
+
+
+  push 4
+    push 1
+  retrive
+store
+
+  push 5
+    push 3
+  retrive
+store
+; all local variables set
+
+label compile_inst_code_loop_restart
+
+; p < e - 2
+; p - e + 2 < 0
+    push 4
+  retrive
+      push 2
+    retrive
+sub
+  push 3 ; end - 3 because at least 3 chars should be left
+add
+
+; finished, all data done
+jumpn compile_inst_code_continue
+jump compile_inst_code_end
+
+
+label compile_inst_code_continue
+
+  push 4
+retrive
+
+call getinst
+; now we have type, size, value on stack
+
+
+;increment code pointer
+        push 4
+      retrive
+    add
+    push 4
+  swap
+store
+
+; save inst
+      push 5
+    retrive
+  swap
+store
+
+;increment compiled code pointer
+  push 5
+      push 5
+    retrive
+    push 1
+  add
+store
+
+; save number
+      push 5
+    retrive
+  swap
+store
+
+;increment compiled code pointer
+  push 5
+      push 5
+    retrive
+    push 1
+  add
+store
+
+jump compile_inst_code_loop_restart
+
+
+label compile_inst_code_end
+
+; get inst code pointer
+; return it
+  push 5
+retrive
+
+ret
+
+
+
+
+; get instruction
+; parameter
+; [1] address of instruction start
+; return
+; [1] source legnth
+; [2] instruction
+; [3] number
+; variables
+; [11-15] instructions copied (1-5)
+; [16] number (only if has number)
+; [17] number length (only if has number)
+; [18] address of instruction start
+
+label getinst
+    push 18
+  swap
+store
+
+  push 18
+retrive
+
+      doub
+    retrive
+    push 11
+  swap
+store
+
+  push 1
+add
+
+      doub
+    retrive
+    push 12
+  swap
+store
+
+  push 1
+add
+
+      doub
+    retrive
+    push 13
+  swap
+store
+
+  push 1
+add
+
+      doub
+    retrive
+    push 14
+  swap
+store
+
+  push 1
+add
+
+    retrive
+    push 15
+  swap
+store
+
+
+
+
+      push 11
+    retrive
+    push 3
+  mul
+    push 12
+  retrive
+add
+; now we have [1]*3+[2]
+doub
+jumpz getinst_push
+
+    push 3
+  mul
+    push 13
+  retrive
+add
+; now we have [1]*9+[2]*3+[3]
+
+test 8
+jumpz getinst_pop
+
+test 6
+jumpz getinst_doub
+
+test 7
+jumpz getinst_swap
+
+test 12
+jumpz getinst_store
+
+test 13
+jumpz getinst_retrive
+
+test 18
+jumpz getinst_label
+
+test 19
+jumpz getinst_call
+
+test 20
+jumpz getinst_jump
+
+test 21
+jumpz getinst_jumpZ
+
+test 22
+jumpz getinst_jumpn
+
+test 23
+jumpz getinst_ret
+
+test 26
+jumpz getinst_exit
+
+    push 3
+  mul
+    push 14
+  retrive
+add
+; now we have [1]*27+[2]*9+[3]*3+[4]
+
+test 27
+jumpz getinst_add
+
+test 28
+jumpz getinst_sub
+
+test 29
+jumpz getinst_mul
+
+test 30
+jumpz getinst_div
+
+test 31
+jumpz getinst_mod
+
+test 45
+jumpz getinst_outc
+
+test 46
+jumpz getinst_outn
+
+test 48
+jumpz getinst_inc
+
+test 49
+jumpz getinst_inn
+
+    push 3
+  mul
+    push 15
+  retrive
+add
+; now we have [1]*81+[2]*27+[3]*9+[4]*3+[5]
+
+test 216
+jumpz getinst_debug_printstack
+
+test 217
+jumpz getinst_debug_printheap
+
+jump getinst_not_known
+
+label getinst_not_known
+pushs "error, type unknown: "
+call printsln
+retrive 11
+outN
+retrive 12
+outN
+retrive 13
+outN
+retrive 14
+outN
+retrive 15
+outN
+pushs " "
+call prints
+outN
+push 0
+call printsln
+debug_printheap
+debug_printstack
+
+push -1
+push 100
+ret
+
+
+label getinst_push
+pop
+    push 18
+  retrive ;code start
+  push 2 ; inst length
+add
+call scan_number
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 1 ;inst number
+    push 17
+  retrive ;number length
+  push 2 ;inst length
+add
+ret
+
+label getinst_pop
+pop
+push 0
+push 2 ;inst number
+push 3
+ret
+
+label getinst_doub
+pop
+push 0
+push 3 ;inst number
+push 3
+ret
+
+label getinst_swap
+pop
+push 0
+push 4 ;inst number
+push 3
+ret
+
+label getinst_store
+pop
+push 0
+push 5 ;inst number
+push 3
+ret
+
+label getinst_retrive
+pop
+push 0
+push 6 ;inst number
+push 3
+ret
+
+label getinst_label
+pop
+    push 18
+  retrive ;code start
+  push 3 ; inst length
+add
+call scan_label
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 7 ;inst number
+    push 17
+  retrive ;number length
+  push 3 ;inst length
+add
+ret
+
+label getinst_call
+pop
+    push 18
+  retrive ;code start
+  push 3 ; inst length
+add
+call scan_label
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 8 ;inst number
+    push 17
+  retrive ;number length
+  push 3 ;inst length
+add
+ret
+
+label getinst_jump
+pop
+    push 18
+  retrive ;code start
+  push 3 ; inst length
+add
+call scan_label
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 9 ;inst number
+    push 17
+  retrive ;number length
+  push 3 ;inst length
+add
+ret
+
+label getinst_jumpz
+pop
+    push 18
+  retrive ;code start
+  push 3 ; inst length
+add
+call scan_label
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 10 ;inst number
+    push 17
+  retrive ;number length
+  push 3 ;inst length
+add
+ret
+
+label getinst_jumpn
+pop
+    push 18
+  retrive ;code start
+  push 3 ; inst length
+add
+call scan_label
+    push 16
+  swap
+store
+    push 17
+  swap
+store
+
+  push 16
+retrive
+; number
+push 11 ;inst number
+    push 17
+  retrive ;number length
+  push 3 ;inst length
+add
+ret
+
+label getinst_ret
+pop
+push 0
+push 12 ;inst number
+push 3
+ret
+
+label getinst_exit
+pop
+push 0
+push 13 ;inst number
+push 3
+ret
+
+label getinst_add
+pop
+push 0
+push 14 ;inst number
+push 4
+ret
+
+label getinst_sub
+pop
+push 0
+push 15 ;inst number
+push 4
+ret
+
+label getinst_mul
+pop
+push 0
+push 16 ;inst number
+push 4
+ret
+
+label getinst_div
+pop
+push 0
+push 17 ;inst number
+push 4
+ret
+
+label getinst_mod
+pop
+push 0
+push 18 ;inst number
+push 4
+ret
+
+label getinst_outc
+pop
+push 0
+push 19 ;inst number
+push 4
+ret
+
+label getinst_outn
+pop
+push 0
+push 20 ;inst number
+push 4
+ret
+
+label getinst_inc
+pop
+push 0
+push 21 ;inst number
+push 4
+ret
+
+label getinst_inn
+pop
+push 0
+push 22 ;inst number
+push 4
+ret
+
+label getinst_debug_printstack
+pop
+push 0
+push 23 ;inst number
+push 5
+ret
+
+label getinst_debug_printheap
+pop
+push 0
+push 24 ;inst number
+push 5
+ret
+
+
+
+;push 0 ;no number
+;push 2 ;type
+;push 1 ;length
+;ret
+
+
+;01-0Push i) ls = "aa" ++ " " ++ (integerToString i)
+;02-8Pop) ls = "acc"
+;03-6Doub) ls  = "aca"
+;04-7Swap) ls  = "acb"
+;05-12Store) ls = "bba"
+;06-13Retrive) ls = "bbb"
+;07-9Label l) ls = "caa" ++ " " ++ (labelToString ls l)
+;08-19Call l) ls = "cab" ++ " " ++ (labelToString ls l)
+;09-20Jump l) ls = "cac" ++ " " ++ (labelToString ls l)
+;10-21JumpZ l) ls = "cba" ++ " " ++ (labelToString ls l)
+;11-22JumpN l) ls = "cbb" ++ " " ++ (labelToString ls l)
+;12-23Ret) ls = "cbc"
+;13-26Exit) ls = "ccc"
+;14-27Add) ls = "baaa"
+;15-28Sub) ls = "baab"
+;16-29Mul) ls = "baac"
+;17-30Div) ls = "baba"
+;18-31Mod) ls = "babb"
+;19-45OutC) ls = "bcaa"
+;20-46OutN) ls = "bcab"
+;21-47InC) ls = "bcba"
+;22-48InN) ls = "bcbb"
+;23-60Debug_PrintStack) ls = "ccaaa"
+;24-61Debug_PrintHeap) ls = "ccaab"
+
+
+
+; scan number
+;   a = 0, b = 1, c = ende
+;   first a,b is sign
+;   next a,b are binary numbers
+;   first c is terminator
+; parameter
+; [1] start of number
+; return
+; [1] number
+; [2] length (including terminating 'c')
+; variables
+; [40] start pointer
+; [41] number
+; [42] sign
+; [43] actual pointer
+
+label scan_number
+		push 42
+		push 1
+	store
+
+		push 41
+		push 0
+	store
+
+			push 40
+		swap
+	store
+
+		push 43
+			push 40
+		retrive
+	store
+
+	;label scan_number_start
+			push 43
+		retrive
+	retrive
+	; got the char
+
+	doub
+	jumpz scan_number_positive_pop
+
+		doub
+		push 1
+	sub
+	jumpz scan_number_negative_pop
+
+		doub
+		push 2
+	sub
+	jumpz scan_number_no_sign_pop_next ;maybe error, number without sign
+
+	jump scan_number_finished_error
+
+	label scan_number_finished_error
+	pushs "error: unknown type (0-2): "
+	call prints
+	outN
+	push 0
+	call printsln
+	debug_printheap
+	debug_printstack
+	jump scan_number_finished
+
+	label scan_number_positive_pop
+	pop
+        push 42
+        push 1
+	store
+	jump scan_number_scan_digits
+
+	label scan_number_negative_pop
+	pop
+        push 42
+        push -1
+	store
+	jump scan_number_scan_digits
+
+	label scan_number_scan_digits
+                    push 43
+                retrive
+                push 1
+            add
+            push 43
+		swap
+	store
+	; pointer to next char
+
+			push 43
+		retrive
+	retrive
+	; got the char
+
+	doub
+	jumpz scan_number_digit_0_pop
+
+		doub
+		push 1
+	sub
+	jumpz scan_number_digit_1_pop
+
+		doub
+		push 2
+	sub
+	jumpz scan_number_finished_pop_next
+
+	jump scan_number_finished_error
+
+	label scan_number_digit_0_pop
+	pop
+		push 41
+					push 41
+				retrive
+				push 2
+			mul
+			push 0
+		add
+	store
+	jump scan_number_scan_digits
+
+	label scan_number_digit_1_pop
+	pop
+		push 41
+					push 41
+				retrive
+				push 2
+			mul
+			push 1
+		add
+	store
+	jump scan_number_scan_digits
+
+	label scan_number_no_sign_pop_next
+	pushs "warning: number without a sign"
+	call printsln
+
+	jump scan_number_finished_pop_next
+
+	label scan_number_finished_pop_next
+	pop
+
+                    push 43
+                retrive
+                push 1
+            add
+            push 43
+		swap
+	store
+	; pointer to next char
+	label scan_number_finished
+
+			push 43
+		retrive
+			push 40
+		retrive
+	sub
+	; length
+
+    		push 41
+	    retrive
+	    	push 42
+	    retrive
+    mul
+	; number
+
+    ret
+
+
+
+; scan label
+;   a = 0, b = 1, c = ende
+;   next a,b are signiture (tranlated to number)
+;   first c is terminator
+; parameter
+; [1] start of number
+; return
+; [1] number
+; [2] length (including terminating 'c')
+; variables
+; [40] start pointer
+; [41] number
+; [43] actual pointer
+
+label scan_label
+		push 41
+		push 1
+	store
+
+			push 40
+		swap
+	store
+
+		push 43
+			push 40
+		retrive
+	store
+
+	label scan_label_scan_digits
+			push 43
+		retrive
+	retrive
+	; got the char
+
+                    push 43
+                retrive
+                push 1
+            add
+            push 43
+		swap
+	store
+	; pointer to next char
+
+	doub
+	jumpz scan_label_digit_0_pop
+
+		doub
+		push 1
+	sub
+	jumpz scan_label_digit_1_pop
+
+		doub
+		push 2
+	sub
+	jumpz scan_label_finished_pop
+
+	jump scan_label_finished_error
+
+	label scan_label_finished_error
+	pushs "error: unknown type (0-2): "
+	call prints
+	outN
+	push 0
+	call printsln
+	debug_printheap
+	debug_printstack
+	jump scan_label_finished
+
+	label scan_label_digit_0_pop
+	pop
+		push 41
+					push 41
+				retrive
+				push 2
+			mul
+			push 0
+		add
+	store
+	jump scan_label_scan_digits
+
+	label scan_label_digit_1_pop
+	pop
+		push 41
+					push 41
+				retrive
+				push 2
+			mul
+			push 1
+		add
+	store
+	jump scan_label_scan_digits
+
+	label scan_label_finished_pop
+	pop
+
+	label scan_label_finished
+
+			push 43
+		retrive
+			push 40
+		retrive
+	sub
+	; length
+
+        push 41
+    retrive
+	; signiture
+
+    ret
+
+
+
+
+
+
+
+
+
+
+
+; translates
+; chars -> 0,1,2
+; ' ' -> 0
+; '\t' -> 1
+; '\n' -> 2
+;
+; parameter:
+; [1] start code
+; [2] end code
+; [3] start compiled code
+; return
+; [1] end compiled code
+;
+; variables
+; [1] start code
+; [2] end code
+; [3] start compiled code
+; [4] code pointer
+; [5] compiled code pointer
+; //stack:
+; //instruction pointer
+label compile_byte_code
+
+    push 3
+  swap
+store
+
+    push 2
+  swap
+store
+
+    push 1
+  swap
+store
+
+;  push 10
+;    push 1
+;  retrive
+;store
+
+  push 4
+  ; start of code
+    push 1
+  retrive
+store
+
+  push 5
+  ; start of compiled code
+    push 3
+  retrive
+store
+
+; main loop
+
+jump compile_byte_code_loop_restart
+
+label  compile_byte_code_loop_restart_pop
+pop
+
+
+label  compile_byte_code_loop_restart
+    push 4
+  retrive
+    push 2
+  retrive
+sub
+
+; finished, all data done
+jumppz compile_byte_code_finished
+
+    push 4
+  retrive
+retrive
+call gettype
+doub
+
+;increment code pointer
+  push 4
+      push 4
+    retrive
+    push 1
+  add
+store
+
+jumpn compile_byte_code_loop_restart_pop
+
+      push 5
+    retrive
+  swap
+store
+
+;increment compiled code pointer
+  push 5
+      push 5
+    retrive
+    push 1
+  add
+store
+
+jump  compile_byte_code_loop_restart
+
+
+
+label compile_byte_code_finished
+
+; compiled code pointer
+  push 5
+retrive
+
+; end of compiled code on stack
+ret
+
+
+
+
+
+
+
+
+label gettype
+; parameter
+; 1: char
+; retrun
+; 1: type ' ' is 0, '\t' is 1, '\n' is 2. else is -1
+
+test 32  ;space
+;test 97  ;'a'
+jumpz gettype_space
+
+test 9  ;tab
+;test 98  ;'b'
+jumpz gettype_tab
+
+test 10	;return
+;test 99	;'c'
+jumpz gettype_return
+
+
+pop
+push -1
+jump gettype_ret
+
+
+label gettype_space
+pop
+push 0
+jump gettype_ret
+
+label gettype_tab
+pop
+push 1
+jump gettype_ret
+
+label gettype_return
+pop
+push 2
+jump gettype_ret
+
+label gettype_ret
+ret
+
+
+
+
+
+
+; program einlesen
+; parameter:
+;   1: where to store the data
+; return:
+;   1: where data ends
+; var 1: status where in "\n\n\nquit\n\n\n" we are - 0 = at beginning
+; var 2: place where to store data
+; var 3: last char
+
+
+label read_program
+
+; param 1 to [2]
+  push 2
+  swap
+store
+
+label read_start_reset
+
+push 1
+push 0
+store
+
+jump read_start_noreset
+
+label read_start_noreset_pop
+pop
+
+label read_start_noreset
+
+
+    push 2
+  retrive
+inC ;number to heap
+;Nummer einlesen
+
+;debug
+;retrive 1
+;outn
+
+;number to stack
+    push 3
+        push 2
+      retrive
+    retrive
+store
+
+
+  push 2
+      push 2
+    retrive
+    push 1
+  add
+store
+
+retrive 1
+test 0
+jumpz onPos0_pop
+
+test 1
+jumpz onPos1_pop
+
+test 2
+jumpz onPos2_pop
+
+test 3
+jumpz onPos3_pop
+
+test 4
+jumpz onPos4_pop
+
+test 5
+jumpz onPos5_pop
+
+test 6
+jumpz onPos6_pop
+
+test 7
+jumpz onPos7_pop
+
+test 8
+jumpz onPos8_pop
+
+jump onPos9_pop
+
+
+
+
+label onPos0_pop
+label onPos1_pop
+label onPos2_pop
+label onPos7_pop
+label onPos8_pop
+label onPos9_pop
+pop
+
+retrive 3
+
+test 13
+jumpz read_start_noreset_pop
+
+test 10
+jumpz read_onNext_pop
+
+pop
+
+jump read_start_reset
+
+
+
+label onPos3_pop
+pop
+
+retrive 3
+test 10 -- enter
+jumpz read_start_noreset_pop
+
+test 13 -- enter
+jumpz read_start_noreset_pop
+
+test 113 -- 'q'
+jumpz read_onNext_pop
+pop
+jump read_start_reset
+
+
+label onPos4_pop
+pop
+
+retrive 3
+test 117 -- 'u'
+jumpz read_onNext_pop
+pop
+jump read_start_reset
+
+
+label onPos5_pop
+pop
+
+retrive 3
+test 105 -- 'i'
+jumpz read_onNext_pop
+pop
+jump read_start_reset
+
+
+label onPos6_pop
+pop
+
+retrive 3
+test 116 -- 't'
+jumpz read_onNext_pop
+pop
+jump read_start_reset
+
+
+label read_onNext_pop
+		retrive 1
+	add 1
+store 1
+
+retrive 1
+sub 10
+jumpz read_end
+
+jump read_start_noreset
+
+
+label read_end
+  push 2
+retrive
+
+ret
+
+
+
+
+
+
+
+;equal to 10
+push 3
+retrive
+push 10
+sub
+jumpz onReturn
+;pop
+
+;equal to 13
+
+jump read_start_reset
+
+
+
+
+label onReturn
+  push 1
+
+      push 1
+    retrive
+    push 1
+  add
+store
+
+
+  push 1
+  retrive
+
+;  doub
+;  outN
+
+  push 6
+sub
+
+jumpn read_start_noreset
+
+

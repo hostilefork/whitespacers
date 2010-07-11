@@ -1,0 +1,69 @@
+running wsintercpp -> wsinterws ->wsinterws -> prim.ws
+---------------------------------------------------------------
+
+C:\projects\WSpace>type wsa\wsinterws.ws >sic.ws
+
+C:\projects\WSpace>type wsa\prim.ws >>sic.ws
+
+C:\projects\WSpace>cpp\inter.exe wsa\wsinterws.ws <sic.ws
+WhiteSpace interpreter in C++ (speedy!!)
+Made by Oliver Burghard Smarty21@gmx.net
+in his free time for your and his joy
+good time and join me to get Whitespace ready for business
+For any other information dial 1-900-WHITESPACE
+Or get soon info at www.WHITESPACE-WANTS-TO-BE-TAKEN-SERIOUS.org
+-- WS Interpreter C++ ------------------------------------------
+can not parse: cc
+can not parse: c
+whitespace interpreter written in whitespace
+made by oliver burghard smarty21@gmx.net
+in his free time for your and his joy
+good time and join me to get whitespace ready for business
+for any other information dial 1-900-whitespace
+or get soon info at www.whitespace-wants-to-be-taken-serious.org
+please enter the program and terminate via 6 x enter
+-- ws interpreter ws -------------------------------------------
+whitespace interpreter written in whitespace
+made by oliver burghard smarty21@gmx.net
+in his free time for your and his joy
+good time and join me to get whitespace ready for business
+for any other information dial 1-900-whitespace
+or get soon info at www.whitespace-wants-to-be-taken-serious.org
+please enter the program and terminate via 6 x enter
+-- ws interpreter ws -------------------------------------------
+prim numbers [2-100]
+2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97
+done
+
+C:\projects\WSpace>
+
+
+
+
+
+
+
+
+
+
+
+
+
+running wsintercpp -> prim.ws
+--------------------------------------------------------------
+C:\projects\WSpace>cpp\inter.exe wsa\prim.ws
+WhiteSpace interpreter in C++ (speedy!!)
+Made by Oliver Burghard Smarty21@gmx.net
+in his free time for your and his joy
+good time and join me to get Whitespace ready for business
+For any other information dial 1-900-WHITESPACE
+Or get soon info at www.WHITESPACE-WANTS-TO-BE-TAKEN-SERIOUS.org
+-- WS Interpreter C++ ------------------------------------------
+can not parse: cc
+can not parse: c
+prim numbers [2-100]
+2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97
+done
+
+C:\projects\WSpace>
+
