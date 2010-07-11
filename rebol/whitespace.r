@@ -69,7 +69,7 @@ REBOL [
 			}
 			
 			mark-location: [
-				command: [space space Label]
+				command: [space space label]
 				description: {Mark a location in the program}
 			]
 			
@@ -83,13 +83,13 @@ REBOL [
 	When the evaluator runs it turns that into the following sequence
 	that the parse dialect can scan for:
 	
-		[lf] [space space Label]
+		[lf] [space space label]
 	
 	Even the fairly elegant Haskell is more obtuse in its match rule, if
 	you choose to dig into its source code:
 	
 		parse (C:A:A:xs) = let (string,rest) = parseString xs in
-			(Label string):(parse rest)
+			(label string):(parse rest)
 	
 	What's beautiful about the Rebol is that working in the more natural
 	style of expression isn't a trick.  I didn't spend hours building 
@@ -100,7 +100,7 @@ REBOL [
 	
 	That really would print "Hello World".  Moreover, the parse language
 	is actually using jump-if-zero/command to detect the patterns.
-	On top of that, Label really is a pattern for recognizing whitespace
+	On top of that, label really is a pattern for recognizing whitespace
 	label strings.  Nothing up our sleeves here!
 	
 	Truthfully the people who wrote the Perl and Haskell could have been
@@ -159,28 +159,24 @@ Stack-Manipulation: [
 	
 	push: [
 		command: [space Number]
-		description:
-		{Push the number onto the stack}
+		description: {Push the number onto the stack}
 	]
 	duplicate-top: [
 		command: [lf space]
-		description:
-		{Duplicate the top item on the stack}
+		description: {Duplicate the top item on the stack}
 	]
 	duplicate-indexed: [
 		command: [tab space Number]
-		description: 
-		{Copy the nth item on the stack (given by the argument) onto the top of the stack}
+		description:
+			{Copy the nth item on the stack (given by the argument) onto the top of the stack}
 	]
 	swap-top-2: [
 		command: [tab tab]
-		description: 
-		{Swap the top two items on the stack}
+		description: {Swap the top two items on the stack}
 	]
 	discard-top: [
 		command: [lf lf]
-		description:
-		{Discard the top item on the stack}
+		description: {Discard the top item on the stack}
 	]
 	slide-n-values: [
 		command: [tab lf Number]
@@ -256,30 +252,27 @@ Flow-Control: [
 	}
 	
 	mark-location: [
-		command: [space space Label]
-		description:
-		{Mark a location in the program}
+		command: [space space label]
+		description: {Mark a location in the program}
 	]
 	
 	call-subroutine: [
-		command: [space tab Label]
-		description:
-		{Call a subroutine}
+		command: [space tab label]
+		description: {Call a subroutine}
 	]
 
 	jump-to-label: [
-		command: [space lf Label]
-		description:
-		{Jump unconditionally to a label}
+		command: [space lf label]
+		description: {Jump unconditionally to a label}
 	]
 
 	jump-if-zero: [
-		command: [tab space Label]
+		command: [tab space label]
 		description: {Jump to a label if the top of the stack is zero}
 	]
 
 	jump-if-negative: [
-		command: [tab tab Label]
+		command: [tab tab label]
 		description: {Jump to a label if the top of the stack is negative}
 	]
 	
@@ -501,7 +494,7 @@ output-number-on-stack: func [] [
 
 
 ;
-; REBOL PARSE DIALECT FOR WHITEspace LANGUAGE
+; REBOL PARSE DIALECT FOR WHITESPACE LANGUAGE
 ;
 
 ; if the number rule matches, then param will contain the
@@ -512,11 +505,11 @@ Number: [
 	)
 ]
 
-; according to the spec, Labels are simply [lf] terminated 
+; according to the spec, labels are simply [lf] terminated 
 ; lists of spaces and tabs.  So treating them as Numbers is fine.
-Label: Number
+label: Number
 
-Pass: 1
+pass: 1
 
 max-execution-steps: 1000
 debug-steps: true
@@ -675,7 +668,7 @@ whitespace-language: [
 			next-instruction: instruction-end
 			
 			either 'mark-location == first instruction [
-				if (Pass == 1) [
+				if (pass == 1) [
 					if debug-steps [
 						print reduce ["(" mold instruction ")"]
 					]
@@ -687,7 +680,7 @@ whitespace-language: [
 					do instruction
 				]
 			] [
-				if (Pass == 2) [
+				if (pass == 2) [
 					if debug-steps [
 						print reduce ["(" mold instruction ")"]
 					]
@@ -737,7 +730,7 @@ program: rejoin [
 	; Put a 1 on the stack
 	space space space tab lf 	 
 
-	; Set a Label at this point
+	; Set a label at this point
 	lf space space space tab space space  space space tab tab lf 
 
 	; Duplicate the top stack item
@@ -790,22 +783,22 @@ program: rejoin [
 
 separator: "---"
 
-print "WHITEspace INTERPRETER FOR PROGRAM: "
+print "WHITESPACE INTERPRETER FOR PROGRAM: "
 print separator
 print program
 print separator
 
 ;
-; LABEL SCANNING PASS
+; label SCANNING pass
 ;
 ; We have to scan the program for labels before we run it
 ; Also this tells us if all the constructions are valid
 ; before we start running
 ;
 
-print "LABEL SCAN PHASE"
+print "label SCAN PHASE"
 
-Pass: 1
+pass: 1
 if not parse program whitespace-language [
 	print "INVALID INPUT"
 	quit
@@ -815,14 +808,14 @@ print mold labels
 print separator
 
 ;
-; PROGRAM EXECUTION PASS
+; PROGRAM EXECUTION pass
 ;
 ; The Rebol parse dialect has the flexibility to do arbitrary
 ; seeks to locations in the input.  This makes it possible to
 ; apply it to a language like whitespace
 ;
 
-Pass: 2
+pass: 2
 either parse program whitespace-language [
 	print "Program End Encountered"
 	print rejoin ["stack: " mold stack]
