@@ -10,7 +10,7 @@ Rebol [
 	Date: 10-Jul-2010
 	Version: 0.2.0
 	
-	Header conventions: http://www.rebol.org/one-click-submission-help.r
+	; Header conventions: http://www.rebol.org/one-click-submission-help.r
 	Type: 'fun
 	Level: 'intermediate
 	
