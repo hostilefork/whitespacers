@@ -1,0 +1,3 @@
+[submodule "idris"]
+	path = idris
+	url = https://github.com/edwinb/WS-idr
