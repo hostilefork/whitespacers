@@ -63,9 +63,10 @@ Rebol [
 			IMP: [lf]
 			description: { 
 				Flow control operations are also common. Subroutines are marked 
-				by labels, as well as the targets of conditional and unconditional
-				jumps, by which loops can be implemented. Programs must be ended
-				by means of [lf lf lf] so that the interpreter can exit cleanly.
+				by labels, as well as the targets of conditional and
+				unconditional jumps, by which loops can be implemented.
+				Programs must be ended by means of [lf lf lf] so that the
+				interpreter can exit cleanly.
 			}
 			
 			mark-location: [
@@ -96,12 +97,19 @@ Rebol [
 	the infrastructure to let me express myself like this.  tab and space 
 	are actually bound to the char codes they represent, so if you wrote:
 	
-		print rejoin ["Hello" space "World"]
+		str: rejoin ["Hello" space "World"]
+		print str
 	
-	That really would print "Hello World".  Moreover, the parse language
-	is actually using mark-location/command to detect the patterns.
-	On top of that, Label really is a pattern for recognizing whitespace
-	label strings.  Nothing up our sleeves here!
+	That really would print "Hello World".  Although it's worth pointing out
+	that Rebol's PRINT can take block values as well as string values, where
+	it will put spaces in-between them.  So you'd get the same results by 
+	writing:
+
+	    print ["Hello" "World"]
+
+	Anyway, the parse language is actually using mark-location/command to
+	detect the patterns.  On top of that, Label really is a pattern for
+	recognizing whitespace label strings.  Nothing up our sleeves here!
 	
 	Truthfully the people who wrote the Perl and Haskell could have been
 	more verbose.  But because the languages aren't reflective, any
@@ -136,7 +144,8 @@ Rebol [
 		I have an agenda to turn whitespace into a dialect as an intermediate
 		step to show the power of dialecting but I haven't done it yet.
 		Probably quite buggy as I only tested it with one example, but
-		proves the concept.} "Fork"]
+		proves the concept.}]
+
 		0.2.0 [10-Jul-2010 {Public release as part of a collection of
 		whitespace interpreters in various languages collected from
 		around the web.}]
@@ -157,8 +166,8 @@ Stack-Manipulation: [
 	IMP: [space] 
 	
 	description: {
-		Stack manipulation is one of the more common operations, hence the shortness of the 
-		IMP [space].
+		Stack manipulation is one of the more common operations, hence the
+		shortness of the IMP [space].
 	}
 	
 	push: [
@@ -171,8 +180,10 @@ Stack-Manipulation: [
 	]
 	duplicate-indexed: [
 		command: [tab space Number]
-		description:
-			{Copy the nth item on the stack (given by the argument) onto the top of the stack}
+		description: {
+			Copy the nth item on the stack (given by the argument)
+			onto the top of the stack
+		}
 	]
 	swap-top-2: [
 		command: [tab tab]
@@ -192,13 +203,16 @@ Arithmetic: [
 	IMP: [tab space]
 	
 	description: {
-		Arithmetic commands operate on the top two items on the stack, and replace them with the
-		result of the operation. The first item pushed is considered to be left of the operator.
+		Arithmetic commands operate on the top two items on the stack, and
+		replace them with the result of the operation. The first item pushed
+		is considered to be left of the operator.
 		
-		The copy and slide instructions are an extension implemented in Whitespace 0.3 and are 
-		designed to facilitate the implementation of recursive functions. The idea is that local 
-		variables are referred to using [space tab space], then on return, you can push the return 
-		value onto the top of the stack and use [space tab lf] to discard the local variables. 
+		The copy and slide instructions are an extension implemented in
+		Whitespace 0.3 and are designed to facilitate the implementation of
+		recursive functions. The idea is that local variables are referred to
+		using [space tab space], then on return, you can push the return 
+		value onto the top of the stack and use [space tab lf] to discard the
+		local variables. 
 	}
 	
 	add: [
@@ -230,10 +244,11 @@ Arithmetic: [
 Heap-Access: [
 	IMP: [tab tab]
 	description: {
-		Heap access commands look at the stack to find the address of items to be stored or 
-		retrieved. To store an item, push the address then the value and run the store command. 
-		To retrieve an item, push the address and run the retrieve command, which will place the 
-		value stored in the location at the top of the stack. 
+		Heap access commands look at the stack to find the address of items
+		to be stored or retrieved. To store an item, push the address then the
+		value and run the store command. To retrieve an item, push the address
+		and run the retrieve command, which will place the value stored in
+		the location at the top of the stack. 
 	}
 	
 	store: [
@@ -250,9 +265,10 @@ Heap-Access: [
 Flow-Control: [ 
 	IMP: [lf]
 	description: { 
-		Flow control operations are also common. Subroutines are marked by labels, as well as the 
-		targets of conditional and unconditional jumps, by which loops can be implemented. Programs 
-		must be ended by means of [lf lf lf] so that the interpreter can exit cleanly.
+		Flow control operations are also common. Subroutines are marked by
+		labels, as well as the targets of conditional and unconditional jumps,
+		by which loops can be implemented. Programs must be ended by means of
+		[lf lf lf] so that the interpreter can exit cleanly.
 	}
 	
 	mark-location: [
@@ -294,12 +310,13 @@ Flow-Control: [
 IO: [
 	IMP: [tab lf]
 	description: {
-		Finally, we need to be able to interact with the user. There are IO instructions for 
-		reading and writing numbers and individual characters. With these, string manipulation 
-		routines can be written (see examples to see how this may be done).
+		Finally, we need to be able to interact with the user. There are IO
+		instructions for reading and writing numbers and individual characters.
+		With these, string manipulation routines can be written (see examples
+		to see how this may be done).
 	
-		The read instructions take the heap address in which to store the result from the top 
-		of the stack.
+		The read instructions take the heap address in which to store the
+		result from the top of the stack.
 	}
 	
 	output-character-on-stack: [
@@ -314,12 +331,18 @@ IO: [
 	
 	read-character-to-location: [
 		command: [tab space]	
-		description: {Read a character and place it in the location given by the top of the stack}
+		description: {
+			Read a character and place it in the location given by the top 
+			of the stack
+		}
 	]
 	
 	read-number-to-location: [
 		command: [tab tab] 
-		description: {Read a number and place it in the location given by the top of the stack}
+		description: {
+			Read a number and place it in the location given by the top of 
+			the stack
+		}
 	]
 ]
 
@@ -421,9 +444,7 @@ do-heap-retrieve: [
 	; again, the spec doesn't explicitly say to remove from stack
 	address: take stack
 	value: select heap address
-	print rejoin [
-		"retrieving " value " to stack from address " address
-	]
+	print ["retrieving" value "to stack from address:" address]
 	insert stack value
 	return none
 ]
@@ -519,7 +540,7 @@ max-execution-steps: 1000
 debug-steps: true
 extended-debug-steps: false
 
-whitespace-language: [
+whitespace-vm-rule: [
 	; capture start of program
 	program-start:
 	
@@ -533,7 +554,7 @@ whitespace-language: [
 		
 		(
 			if (execution-steps > max-execution-steps) [
-				print rejoin ["MORE THAN " execution-steps " INSTRUCTIONS EXECUTED"]
+				print ["MORE THAN" execution-steps "INSTRUCTIONS EXECUTED"]
 				quit
 			]
 		)
@@ -662,8 +683,9 @@ whitespace-language: [
 			if extended-debug-steps [
 				print [
 					"S:" offset? program-start instruction-start 
-					" E:" offset? program-start instruction-end
-					" " mold copy/part instruction-start instruction-end
+					"E:" offset? program-start instruction-end
+					"->"
+					mold copy/part instruction-start instruction-end
 				]
 			]
 			
@@ -674,7 +696,7 @@ whitespace-language: [
 			either 'mark-location == first instruction [
 				if (pass == 1) [
 					if debug-steps [
-						print reduce ["(" mold instruction ")"]
+						print ["(" mold instruction ")"]
 					]
 									
 					; now we capture the end of this instruction...
@@ -686,7 +708,7 @@ whitespace-language: [
 			] [
 				if (pass == 2) [
 					if debug-steps [
-						print reduce ["(" mold instruction ")"]
+						print ["(" mold instruction ")"]
 					]
 
 					; most instructions run on the second pass...				
@@ -724,9 +746,9 @@ whitespace-language: [
 ;     http://compsoc.dur.ac.uk/whitespace/tutorial.php
 ; 
 ; Note that space, tab, lf are defined in Rebol.  The rejoin
-; operation turns this into a bona-fide string.  But it's easier
-; to read and add comments when we start out as a block of
-; characters.
+; operation turns this into a bona-fide string.  But it's "easier
+; to read" (or at least, to add comments) when we start out as a
+; block of symbols we reduce to characters.
 ; 
 
 program: rejoin [
@@ -787,7 +809,7 @@ program: rejoin [
 
 separator: "---"
 
-print "WHITESPACE INTERPRETER FOR PROGRAM: "
+print "WHITESPACE INTERPRETER FOR PROGRAM:"
 print separator
 print program
 print separator
@@ -803,7 +825,7 @@ print separator
 print "LABEL SCAN PHASE"
 
 pass: 1
-if not parse program whitespace-language [
+unless parse program whitespace-vm-rule [
 	print "INVALID INPUT"
 	quit
 ]
@@ -820,11 +842,11 @@ print separator
 ;
 
 pass: 2
-either parse program whitespace-language [
+either parse program whitespace-vm-rule [
 	print "Program End Encountered"
-	print rejoin ["stack: " mold stack]
-	print rejoin ["callstack: " mold callstack]
-	print rejoin ["heap: " mold heap]
+	print ["stack:" mold stack]
+	print ["callstack:" mold callstack]
+	print ["heap:" mold heap]
 ] [
 	print "UNEXPECTED TERMINATION (Internal Error)"
 ]
