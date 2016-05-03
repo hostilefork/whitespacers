@@ -144,7 +144,7 @@ long read_source_file(char* path, char** buffer)
 		if (!fseek(file, 0, SEEK_END)) {
 			if ((size = ftell(file)) != -1L) {
 				rewind(file);
-				if (*buffer = calloc(size, sizeof(char) + 1)) {
+				if (*buffer = calloc(size+1, sizeof(char))) {
 					if (fread(*buffer, sizeof(char), size + 1, file)) {
 						fclose(file);
 						return size;
@@ -230,7 +230,7 @@ bool create_heap(void)
 bool heap_put(long long val, long long addr)
 {
 	// First see if the address is already in use
-	for (int i = 0; i < HEAP_MEMBERS; i++) {
+	for (int i = 0; i < heap.elements; i++) {
 		if (heap.address[i] == addr) {
 			heap.value[i] = val;
 			return true;
@@ -239,8 +239,7 @@ bool heap_put(long long val, long long addr)
 	
 	// If not, then it needs to be added if there is room left
 	if (heap.elements < HEAP_MEMBERS) {
-		int i = 0;
-		for (; heap.address[i]; i++);
+		int i = heap.elements;
 		heap.address[i] = addr;
 		heap.value[i] = val;
 		heap.elements++;
@@ -291,140 +290,119 @@ void cleanup_label_table(void)
 // But I would prefer to leave everything to be dynamically allocated
 bool create_instruction_set(void)
 {
-	int i = 0;
-	if (instruction_set.unique_id = (char**)calloc(MAX_INSTRUCTIONS, sizeof(char*))) {
-		if (instruction_set.instruction_size = (int*)calloc(MAX_INSTRUCTIONS, sizeof(int))) {
-			for (; i < MAX_INSTRUCTIONS; i++) {
-				if (instruction_set.unique_id[i] = (char*)calloc(MAX_INSTRUCTION_LENGTH, sizeof(char))) {
-					if (instruction_set.instruction_function = (void (**)())calloc(MAX_INSTRUCTION_LENGTH, sizeof(bool*))) {
-						continue;
-					}
-					free (instruction_set.unique_id[i]);
-				}
-				for (i--; i >= 0; i--) {
-					free (instruction_set.unique_id[i]);
-					free (instruction_set.instruction_function[i]);
-				}
-				free (instruction_set.unique_id);
-				free (instruction_set.instruction_size);
-				break;
-			}
-		}
-	}
-	if (i == MAX_INSTRUCTIONS) {
-		// Here we put all of the instruction ids and functions
-		
-		// Stack Manipulation - [SPACE]
-		instruction_set.unique_id[0] = "\x20\x20";
-		instruction_set.instruction_function[0] = &ws_stack_push;
-		instruction_set.instruction_size[0] = 2;
-		
-		instruction_set.unique_id[1] = "\x20\x0A\x20";
-		instruction_set.instruction_function[1] = &ws_stack_dup;
-		instruction_set.instruction_size[1] = 3;
-		
-		instruction_set.unique_id[2] = "\x20\x09\x20";
-		instruction_set.instruction_function[2] = &ws_stack_copy;
-		instruction_set.instruction_size[2] = 3;
-		
-		instruction_set.unique_id[3] = "\x20\x0A\x09";
-		instruction_set.instruction_function[3] = &ws_stack_swap;
-		instruction_set.instruction_size[3] = 3;
-		
-		instruction_set.unique_id[4] = "\x20\x0A\x0A";
-		instruction_set.instruction_function[4] = &ws_stack_discard;
-		instruction_set.instruction_size[4] = 3;
-		
-		instruction_set.unique_id[5] = "\x20\x09\x0A";
-		instruction_set.instruction_function[5] = &ws_stack_slide;
-		instruction_set.instruction_size[5] = 3;
-		
-		// Arithmetic - [Tab][Space]
-		instruction_set.unique_id[6] = "\x09\x20\x20\x20";
-		instruction_set.instruction_function[6] = &ws_math_add;
-		instruction_set.instruction_size[6] = 4;
-		
-		instruction_set.unique_id[7] = "\x09\x20\x20\x09";
-		instruction_set.instruction_function[7] = &ws_math_sub;
-		instruction_set.instruction_size[7] = 4;
-		
-		instruction_set.unique_id[8] = "\x09\x20\x20\x0A";
-		instruction_set.instruction_function[8] = &ws_math_mult;
-		instruction_set.instruction_size[8] = 4;
-		
-		instruction_set.unique_id[9] = "\x09\x20\x09\x20";
-		instruction_set.instruction_function[9] = &ws_math_div;
-		instruction_set.instruction_size[9] = 4;
-		
-		instruction_set.unique_id[10] = "\x09\x20\x09\x09";
-		instruction_set.instruction_function[10] = &ws_math_mod;
-		instruction_set.instruction_size[10] = 4;
-		
-		// Heap access - [Tab][Tab]
-		instruction_set.unique_id[11] = "\x09\x09\x20";
-		instruction_set.instruction_function[11] = &ws_heap_store;
-		instruction_set.instruction_size[11] = 3;
-		
-		instruction_set.unique_id[12] = "\x09\x09\x09";
-		instruction_set.instruction_function[12] = &ws_heap_retrieve;
-		instruction_set.instruction_size[12] = 3;
-		
-		// Flow Control - [LF] 
-		instruction_set.unique_id[13] = "\x0A\x20\x20";
-		instruction_set.instruction_function[13] = &ws_flow_mark;
-		instruction_set.instruction_size[13] = 3;
-		
-		instruction_set.unique_id[14] = "\x0A\x20\x09";
-		instruction_set.instruction_function[14] = &ws_flow_call;
-		instruction_set.instruction_size[14] = 3;
-		
-		instruction_set.unique_id[15] = "\x0A\x20\x0A";
-		instruction_set.instruction_function[15] = &ws_flow_jump;
-		instruction_set.instruction_size[15] = 3;
-		
-		instruction_set.unique_id[16] = "\x0A\x09\x20";
-		instruction_set.instruction_function[16] = &ws_flow_jz;
-		instruction_set.instruction_size[16] = 3;
-		
-		instruction_set.unique_id[17] = "\x0A\x09\x09";
-		instruction_set.instruction_function[17] = &ws_flow_jn;
-		instruction_set.instruction_size[17] = 3;
-		
-		instruction_set.unique_id[18] = "\x0A\x09\x0A";
-		instruction_set.instruction_function[18] = &ws_flow_ret;
-		instruction_set.instruction_size[18] = 3;
-		
-		instruction_set.unique_id[19] = "\x0A\x0A\x0A";
-		instruction_set.instruction_function[19] = &ws_flow_exit;
-		instruction_set.instruction_size[19] = 3;
-		
-		// Input/Output - [Tab][LF]
-		instruction_set.unique_id[20] = "\x09\x0A\x20\x20";
-		instruction_set.instruction_function[20] = &ws_io_outc;
-		instruction_set.instruction_size[20] = 4;
-		
-		instruction_set.unique_id[21] = "\x09\x0A\x20\x09";
-		instruction_set.instruction_function[21] = &ws_io_outn;
-		instruction_set.instruction_size[21] = 4;
-		
-		instruction_set.unique_id[22] = "\x09\x0A\x09\x20";
-		instruction_set.instruction_function[22] = &ws_io_inc;
-		instruction_set.instruction_size[22] = 4;
-		
-		instruction_set.unique_id[23] = "\x09\x0A\x09\x09";
-		instruction_set.instruction_function[23] = &ws_io_inn;
-		instruction_set.instruction_size[23] = 4;
-		return true;
-	}
-	else return false;
+	instruction_set.unique_id = calloc(MAX_INSTRUCTIONS, sizeof(char*));
+	instruction_set.instruction_size = calloc(MAX_INSTRUCTIONS, sizeof(int));
+	instruction_set.instruction_function = calloc(MAX_INSTRUCTIONS, sizeof(void(*)(char *, int)));
+	// Here we put all of the instruction ids and functions
+
+	// Stack Manipulation - [SPACE]
+	instruction_set.unique_id[0] = "\x20\x20";
+	instruction_set.instruction_function[0] = &ws_stack_push;
+	instruction_set.instruction_size[0] = 2;
+
+	instruction_set.unique_id[1] = "\x20\x0A\x20";
+	instruction_set.instruction_function[1] = &ws_stack_dup;
+	instruction_set.instruction_size[1] = 3;
+
+	instruction_set.unique_id[2] = "\x20\x09\x20";
+	instruction_set.instruction_function[2] = &ws_stack_copy;
+	instruction_set.instruction_size[2] = 3;
+
+	instruction_set.unique_id[3] = "\x20\x0A\x09";
+	instruction_set.instruction_function[3] = &ws_stack_swap;
+	instruction_set.instruction_size[3] = 3;
+
+	instruction_set.unique_id[4] = "\x20\x0A\x0A";
+	instruction_set.instruction_function[4] = &ws_stack_discard;
+	instruction_set.instruction_size[4] = 3;
+
+	instruction_set.unique_id[5] = "\x20\x09\x0A";
+	instruction_set.instruction_function[5] = &ws_stack_slide;
+	instruction_set.instruction_size[5] = 3;
+
+	// Arithmetic - [Tab][Space]
+	instruction_set.unique_id[6] = "\x09\x20\x20\x20";
+	instruction_set.instruction_function[6] = &ws_math_add;
+	instruction_set.instruction_size[6] = 4;
+
+	instruction_set.unique_id[7] = "\x09\x20\x20\x09";
+	instruction_set.instruction_function[7] = &ws_math_sub;
+	instruction_set.instruction_size[7] = 4;
+
+	instruction_set.unique_id[8] = "\x09\x20\x20\x0A";
+	instruction_set.instruction_function[8] = &ws_math_mult;
+	instruction_set.instruction_size[8] = 4;
+
+	instruction_set.unique_id[9] = "\x09\x20\x09\x20";
+	instruction_set.instruction_function[9] = &ws_math_div;
+	instruction_set.instruction_size[9] = 4;
+
+	instruction_set.unique_id[10] = "\x09\x20\x09\x09";
+	instruction_set.instruction_function[10] = &ws_math_mod;
+	instruction_set.instruction_size[10] = 4;
+
+	// Heap access - [Tab][Tab]
+	instruction_set.unique_id[11] = "\x09\x09\x20";
+	instruction_set.instruction_function[11] = &ws_heap_store;
+	instruction_set.instruction_size[11] = 3;
+
+	instruction_set.unique_id[12] = "\x09\x09\x09";
+	instruction_set.instruction_function[12] = &ws_heap_retrieve;
+	instruction_set.instruction_size[12] = 3;
+
+	// Flow Control - [LF]
+	instruction_set.unique_id[13] = "\x0A\x20\x20";
+	instruction_set.instruction_function[13] = &ws_flow_mark;
+	instruction_set.instruction_size[13] = 3;
+
+	instruction_set.unique_id[14] = "\x0A\x20\x09";
+	instruction_set.instruction_function[14] = &ws_flow_call;
+	instruction_set.instruction_size[14] = 3;
+
+	instruction_set.unique_id[15] = "\x0A\x20\x0A";
+	instruction_set.instruction_function[15] = &ws_flow_jump;
+	instruction_set.instruction_size[15] = 3;
+
+	instruction_set.unique_id[16] = "\x0A\x09\x20";
+	instruction_set.instruction_function[16] = &ws_flow_jz;
+	instruction_set.instruction_size[16] = 3;
+
+	instruction_set.unique_id[17] = "\x0A\x09\x09";
+	instruction_set.instruction_function[17] = &ws_flow_jn;
+	instruction_set.instruction_size[17] = 3;
+
+	instruction_set.unique_id[18] = "\x0A\x09\x0A";
+	instruction_set.instruction_function[18] = &ws_flow_ret;
+	instruction_set.instruction_size[18] = 3;
+
+	instruction_set.unique_id[19] = "\x0A\x0A\x0A";
+	instruction_set.instruction_function[19] = &ws_flow_exit;
+	instruction_set.instruction_size[19] = 3;
+
+	// Input/Output - [Tab][LF]
+	instruction_set.unique_id[20] = "\x09\x0A\x20\x20";
+	instruction_set.instruction_function[20] = &ws_io_outc;
+	instruction_set.instruction_size[20] = 4;
+
+	instruction_set.unique_id[21] = "\x09\x0A\x20\x09";
+	instruction_set.instruction_function[21] = &ws_io_outn;
+	instruction_set.instruction_size[21] = 4;
+
+	instruction_set.unique_id[22] = "\x09\x0A\x09\x20";
+	instruction_set.instruction_function[22] = &ws_io_inc;
+	instruction_set.instruction_size[22] = 4;
+
+	instruction_set.unique_id[23] = "\x09\x0A\x09\x09";
+	instruction_set.instruction_function[23] = &ws_io_inn;
+	instruction_set.instruction_size[23] = 4;
+	return true;
 }
 
 void cleanup_instruction_set(void)
 {
-	for (int i = 0; i < MAX_INSTRUCTIONS; i++) 
-		free (instruction_set.unique_id[i]);
 	free (instruction_set.instruction_function);
 	free (instruction_set.unique_id);
+	free (instruction_set.instruction_size);
 	return;
 }
 
@@ -484,7 +462,7 @@ long long get_last_ret_addr(void)
 void step_through_program(char* source)
 {
 	int i;
-	while (source[current_instruction_index] && current_instruction_index != -1) {
+	while (current_instruction_index != -1 && source[current_instruction_index]) {
 		for (i = 0; i < MAX_INSTRUCTIONS; i++) {
 			if (!strncmp(&(source[current_instruction_index]), instruction_set.unique_id[i], instruction_set.instruction_size[i])) {
 				instruction_set.instruction_function[i](&(source[current_instruction_index]), instruction_set.instruction_size[i]);
