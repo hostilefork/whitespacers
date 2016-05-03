@@ -1,4 +1,4 @@
-#!/usr/bin/ruby1.8
+#!/usr/bin/ruby
 
 # whitepsace-ruby
 # Copyright (C) 2003 by Wayne E. Conrad
@@ -22,6 +22,8 @@ Opcodes = [
   [' \n ', :dup],
   [' \n\t', :swap],
   [' \n\n', :discard],
+  [' \t ', :copy, :signed],
+  [' \t\n', :slide, :signed],
   ['\t   ', :add], 
   ['\t  \t', :sub],
   ['\t  \n', :mul],
@@ -63,7 +65,7 @@ class Tokenizer
 
   def tokenize
     for ws, opcode, arg in Opcodes
-      if @program =~ /\A#{ws}#{arg ? '([ \t]*)\n' : '()'}(.*)\z/m
+      if /\A#{ws}#{arg ? '([ \t]*)\n' : '()'}(.*)\z/m =~ @program
         @program = $2
         case arg
         when :unsigned
@@ -105,7 +107,7 @@ class Executor
       when :outnum
         print @stack.pop
       when :outchar
-        print @stack.pop.chr
+        print @stack.pop.chr("UTF-8")
       when :add
         binaryOp("+")
       when :sub
@@ -138,11 +140,15 @@ class Executor
       when :ret
         @pc = @callStack.pop
       when :readchar
-        @heap[@stack.pop] = $stdin.getc
+        @heap[@stack.pop] = $stdin.getc.each_codepoint.next
       when :readnum
         @heap[@stack.pop] = $stdin.gets.to_i
       when :swap
         @stack[-1], @stack[-2] = @stack[-2], @stack[-1]
+      when :copy
+        @stack.push @stack[-arg-1]
+      when :slide
+        @stack.slice!(-arg-1, arg)
       else
         error("Unknown opcode: #{opcode.inspect}")
       end
