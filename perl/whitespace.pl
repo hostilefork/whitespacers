@@ -42,7 +42,7 @@ my $stdin = '';
 # pre_parse to get all the labels
 while ( $p->is_cmd )
 {
-    my @valid_cmds = qw ( AAn ACA ACB ACC 
+    my @valid_cmds = qw ( AAn ACA ACB ACC ABAn ABCn
 			  BAAA BAAB BAAC BABA BABB
 			  BBA BBB 
 			  CAAl CABl CACl CBAl CBBl CBC CCC
@@ -53,6 +53,8 @@ while ( $p->is_cmd )
 			ACA duplicate_last
 			ACB swap_last
 			ACC pop_number
+			ABAn copy
+			ABCn slide
 			BAAA add
 			BAAB subtract
 			BAAC multiply
@@ -97,6 +99,8 @@ while ( $p->is_cmd )
     $p->parsecmd( "ACA" ) and push @stack, $stack[-1];
     $p->parsecmd( "ACB" ) and push @stack, reverse splice @stack, -2, 2;
     $p->parsecmd( "ACC" ) and pop @stack;
+    $p->parsecmd( "ABAn" ) and push @stack, $stack[-$p->result - 1];
+    $p->parsecmd( "ABCn" ) and splice @stack, -$p->result - 1, $p->result;
 
     my ( $left, $right );
     $p->parsecmd( "BA") and do
