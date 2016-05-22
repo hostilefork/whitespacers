@@ -131,7 +131,7 @@ int main(int argc, char** argv)
 		}
 	}
 	else
-		printf("Proper Useage: %s file.ws", argv[0]);
+		printf("Proper Usage: %s file.ws\n", argv[0]);
 	return 1;
 }
 
