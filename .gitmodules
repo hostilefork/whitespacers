@@ -1,3 +1,6 @@
 [submodule "idris"]
 	path = idris
 	url = https://github.com/edwinb/WS-idr
+[submodule "javascript/WS2JS"]
+	path = javascript/WS2JS
+	url = git@github.com:Luilak/WS2JS.git
