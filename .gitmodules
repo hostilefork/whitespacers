@@ -1,3 +1,6 @@
 [submodule "idris"]
 	path = idris
 	url = https://github.com/edwinb/WS-idr
+[submodule "crystal"]
+	path = crystal
+	url = https://github.com/collidedscope/spiceweight
