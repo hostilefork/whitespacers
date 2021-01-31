@@ -811,7 +811,7 @@ separator: "---"
 
 print "WHITESPACE INTERPRETER FOR PROGRAM:"
 print separator
-print program
+print mold program
 print separator
 
 ;
