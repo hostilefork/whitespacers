@@ -143,7 +143,7 @@ Stack-Manipulation: category [
         {Copy Nth item on the stack (given by the arg) to top of stack}
         tab space Number
     ] func [index [integer!]] [
-        insert stack pick stack param
+        insert stack pick stack index
         return null
     ]
 
@@ -297,7 +297,12 @@ Flow-Control: category [
     mark-location: operation [
         {Mark a location in the program}
         space space Label
-    ] func [label [integer!] address [integer!]] [
+    ] func [label [integer!] <local> address] [
+        ;
+        ; now we capture the end of this instruction...
+        ;
+        address: offset? program-start instruction-end
+
         pos: select labels label
         either pos [
             poke pos 1 address
@@ -310,25 +315,30 @@ Flow-Control: category [
     call-subroutine: operation [
         {Call a subroutine}
         space tab Label
-    ] func [current-offset [integer!]] [
+    ] func [label [integer!] <local> current-offset] [
+        ;
+        ; Call subroutine must be able to find the current parse location
+        ; (a.k.a. program counter) so it can put it in the callstack.
+        ;
+        current-offset: offset? instruction-start program-start
         insert callstack current-offset
-        return lookup-label-offset param
+        return lookup-label-offset label
     ]
 
     jump-to-label: operation [
         {Jump unconditionally to a Label}
         space lf Label
-    ] func [] [
-        return lookup-label-offset param
+    ] func [label [integer!]] [
+        return lookup-label-offset label
     ]
 
     jump-if-zero: operation [
         {Jump to a Label if the top of the stack is zero}
         tab space Label
-    ] func [] [
+    ] func [label [integer!]] [
         ; must pop stack to make example work
         if zero? take stack [
-            return lookup-label-offset param
+            return lookup-label-offset label
         ]
         return null
     ]
@@ -336,10 +346,10 @@ Flow-Control: category [
     jump-if-negative: operation [
         {Jump to a Label if the top of the stack is negative}
         tab tab Label
-    ] func [] [
+    ] func [label [integer!]] [
         ; must pop stack to make example work
         if 0 > take stack [
-            return lookup-label-offset param
+            return lookup-label-offset label
         ]
         return null
     ]
@@ -572,24 +582,19 @@ whitespace-vm-rule: [
             )
 
             | Flow-Control/call-subroutine/command (
-                ; the call subroutine command must be told of the
-                ; current parse location (a.k.a. program counter)
-                ; so it can put it in the callstack
-                instruction: compose [
-                    call-subroutine (offset? instruction-start program-start)
-                ]
+                instruction: compose [call-subroutine (param)]
             )
 
             | Flow-Control/jump-to-label/command (
-                instruction: copy [jump-to-label]
+                instruction: compose [jump-to-label (param)]
             )
 
             | Flow-Control/jump-if-zero/command (
-                instruction: copy [jump-if-zero]
+                instruction: compose [jump-if-zero (param)]
             )
 
             | Flow-Control/jump-if-negative/command (
-                instruction: copy [jump-if-negative]
+                instruction: compose [jump-if-negative (param)]
             )
 
             | Flow-Control/return-from-subroutine/command (
@@ -676,13 +681,10 @@ whitespace-vm-rule: [
                         print ["(" mold instruction ")"]
                     ]
 
-                    ; now we capture the end of this instruction...
-                    repend instruction [offset? program-start instruction-end]
-
                     ; the first pass does the Label markings...
-                    do instruction
+                    ensure null do instruction
                 ]
-            ] [
+            ][
                 if (pass == 2) [
                     if debug-steps [
                         print ["(" mold instruction ")"]
