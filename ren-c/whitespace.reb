@@ -14,123 +14,10 @@ Rebol [
     Type: 'fun
     Level: 'intermediate
 
-    Description: {This is an interpreter for the Whitespace language:
+    Description: {
+        This is an interpreter for the Whitespace language:
 
         http://compsoc.dur.ac.uk/whitespace/
-
-    Although the language was invented as a joke, making a working
-    implementation has much of the spirit of a "real" programming task.
-    The existence of implementations in Haskell, Ruby, Perl, C++, and
-    Python mean it is possible to take a real look at the contrast in how
-    you can approach the problem.  The comparison is not just in terms of
-    number  of characters of code... but also in *essential* qualities.
-
-    Any sensible implementation of a task like this will be somewhat
-    table-driven (or more generally, "specification-driven").  Otherwise
-    you end up with unmaintainable spaghetti code.  Even the Perl (gak, ugh!)
-    implementation has a table due to the author's savvy, here's how they
-    define it:
-
-        my %cmd_list = qw ( AAn push_number
-            ACA duplicate_last
-            ACB swap_last
-            ACC pop_number
-            BAAA add
-            BAAB subtract
-            BAAC multiply
-            BABA div
-            BABB mod
-            BBA store
-            BBB retrieve
-            CAAl set_Label
-            CABl call_Label
-            CACl jump
-            CBAl jump_ifzero
-            CBBl jump_negative
-            CBC ret
-            CCC end
-            BCAA print_char
-            BCAB print_num
-            BCBA read_char
-            BCBB read_num );
-
-    Yet the difference I demonstrate is that in Rebol, you can easily make
-    your program work more closely in the terminology of the specification.
-    For instance, look how easily I can put the whole Flow-Control group
-    together with its documentation:
-
-        Flow-Control: [
-            IMP: [lf]
-            description: {
-                Flow control operations are also common. Subroutines are marked
-                by labels, as well as the targets of conditional and
-                unconditional jumps, by which loops can be implemented.
-                Programs must be ended by means of [lf lf lf] so that the
-                interpreter can exit cleanly.
-            }
-
-            mark-location: [
-                command: [space space Label]
-                description: {Mark a location in the program}
-            ]
-
-            (etc.)
-
-    The elegance of matching the IMP instruction followed by a
-    mark-location is really, at its core, this simple:
-
-        Flow-Control/IMP Flow-Control/mark-location/command
-
-    When the evaluator runs it turns that into the following sequence
-    that the parse dialect can scan for:
-
-        [lf] [space space Label]
-
-    Even the fairly elegant Haskell is more obtuse in its match rule, if
-    you choose to dig into its source code:
-
-        parse (C:A:A:xs) = let (string,rest) = parseString xs in
-            (Label string):(parse rest)
-
-    What's beautiful about the Rebol is that working in the more natural
-    style of expression isn't a trick.  I didn't spend hours building
-    the infrastructure to let me express myself like this.  tab and space
-    are actually bound to the char codes they represent, so if you wrote:
-
-        str: unspaced ["Hello" space "World"]
-        print str
-
-    That really would print "Hello World".  Although it's worth pointing out
-    that Rebol's PRINT can take block values as well as string values, where
-    it will put spaces in-between them.  So you'd get the same results by
-    writing:
-
-        print ["Hello" "World"]
-
-    Anyway, the parse language is actually using mark-location/command to
-    detect the patterns.  On top of that, Label really is a pattern for
-    recognizing whitespace label strings.  Nothing up our sleeves here!
-
-    Truthfully the people who wrote the Perl and Haskell could have been
-    more verbose.  But because the languages aren't reflective, any
-    such coding that you do is trapped within the metaphors you are given.
-    You end up putting your internal specs into strings and
-    parsing them.  Why not skip the middleman and use structural
-    expression, which can be reflected out as debugging information...
-    for free?!
-
-    As an added gimmick, I did more than just use Rebol's parse dialect
-    to analyze the whitespace sequences.  It's also the virtual machine!!!
-
-    I use the fact that when you give the parser input to process, you can
-    programmatically move the parser position--back to something you've
-    already parsed, or forward to something you haven't seen yet.
-    Consequently it can be used as a program counter!  This happens to work
-    for the whitespace VM, though you probably wouldn't be doing this in
-    practice.  It's kind of a pun, and only done to show you how impressive
-    the parse dialect is.
-
-    In short, it's worth a look.
     }
 
     Usage: {
@@ -140,15 +27,10 @@ Rebol [
     }
 
     History: [
-        0.1.0 [8-Oct-2009 {Private release to R3 Chat Group for commentary,
-        I have an agenda to turn whitespace into a dialect as an intermediate
-        step to show the power of dialecting but I haven't done it yet.
-        Probably quite buggy as I only tested it with one example, but
-        proves the concept.}]
+        0.1.0 [8-Oct-2009 {Private release to R3 Chat Group for commentary}]
 
         0.2.0 [10-Jul-2010 {Public release as part of a collection of
-        whitespace interpreters in various languages collected from
-        around the web.}]
+        whitespace interpreters in various languages}]
     ]
 ]
 
