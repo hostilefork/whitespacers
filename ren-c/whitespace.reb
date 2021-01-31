@@ -84,7 +84,8 @@ operation: enfixed func [
     return: [object!]
     'name [set-word!]
     spec [block!]
-    action [action!]
+    args [block!]
+    body [block!]
 ][
     ; We want the operation to be a function (and be able to bind to it as
     ; if it is one).  But there's additional information we want to glue on.
@@ -104,7 +105,14 @@ operation: enfixed func [
         description: ensure text! first spec
         command: copy next spec  ; TBD: validation
 
-        (name) '(:action)  ; for `push: operation ...` this will be `push/push`
+        ; for `push: operation ...` this will be `push/push`, reasoning above
+        ;
+        ; !!! We add RETURN NULL here to make that the default if a jump
+        ; address is not returned.  However, using a return value may not be
+        ; the ideal way of doing this (vs. calling a JUMP-TO method on some
+        ; object representing the virtual machine).
+        ;
+        (name) func args compose [((body)), return null]
     ]
 ]
 
@@ -126,49 +134,43 @@ Stack-Manipulation: category [
     push: operation [
         {Push the number onto the stack}
         space Number
-    ] func [value [integer!]] [
+    ] [value [integer!]] [
         insert stack value
-        return null
     ]
 
     duplicate-top: operation [
         {Duplicate the top item on the stack}
         lf space
-    ] func [] [
+    ] [] [
         insert stack first stack
-        return null
     ]
 
     duplicate-indexed: operation [
         {Copy Nth item on the stack (given by the arg) to top of stack}
         tab space Number
-    ] func [index [integer!]] [
+    ] [index [integer!]] [
         insert stack pick stack index
-        return null
     ]
 
     swap-top-2: operation [
         {Swap the top two items on the stack}
         tab tab
-    ] func [] [
+    ] [] [
         move/part stack 1 1
-        return null
     ]
 
     discard-top: operation [
         {Discard the top item on the stack}
         lf lf
-    ] func [] [
+    ] [] [
         take stack
-        return null
     ]
 
     slide-n-values: operation [
         {Slide n items off the stack, keeping the top item}
         tab lf Number
-    ] func [n [integer!]] [
+    ] [n [integer!]] [
         take/part next stack n
-        return null
     ]
 ]
 
@@ -181,7 +183,6 @@ do-arithmetic: func [operator [word!]] [
         operator second stack first stack
     ]
     take/part next stack 2
-    return null
 ]
 
 
@@ -204,35 +205,35 @@ Arithmetic: category [
     add: operation [
         {Addition}
         space space
-    ] func [] [
+    ] [] [
         do-arithmetic 'add
     ]
 
     subtract: operation [
         {Subtraction}
         space tab
-    ] func [] [
+    ] [] [
         do-arithmetic 'subtract
     ]
 
     multiply: operation [
         {Multiplication}
         space lf
-    ] func [] [
+    ] [] [
         do-arithmetic 'multiply
     ]
 
     divide: operation [
         {Integer Division}
         tab space
-    ] func [] [
+    ] [] [
         do-arithmetic 'divide
     ]
 
     modulo: operation [
         {Modulo}
         tab tab
-    ] func [] [
+    ] [] [
         do-arithmetic 'modulo
     ]
 ]
@@ -252,7 +253,7 @@ Heap-Access: category [
     store: operation [
         {Store}
         space
-    ] func [] [
+    ] [] [
         ; hmmm... are value and address left on the stack?
         ; the spec does not explicitly say they are removed
         ; but the spec is pretty liberal about not mentioning it
@@ -267,19 +268,17 @@ Heap-Access: category [
         ]
 
         take/part stack 2
-        return null
     ]
 
     retrieve: operation [
         {Retrieve}
         tab
-    ] func [] [
+    ] [] [
         ; again, the spec doesn't explicitly say to remove from stack
         address: take stack
         value: select heap address
         print ["retrieving" value "to stack from address:" address]
         insert stack value
-        return null
     ]
 ]
 
@@ -297,7 +296,7 @@ Flow-Control: category [
     mark-location: operation [
         {Mark a location in the program}
         space space Label
-    ] func [label [integer!] <local> address] [
+    ] [label [integer!] <local> address] [
         ;
         ; now we capture the end of this instruction...
         ;
@@ -309,13 +308,12 @@ Flow-Control: category [
         ][
             repend labels [label address]
         ]
-        return null
     ]
 
     call-subroutine: operation [
         {Call a subroutine}
         space tab Label
-    ] func [label [integer!] <local> current-offset] [
+    ] [label [integer!] <local> current-offset] [
         ;
         ; Call subroutine must be able to find the current parse location
         ; (a.k.a. program counter) so it can put it in the callstack.
@@ -328,39 +326,36 @@ Flow-Control: category [
     jump-to-label: operation [
         {Jump unconditionally to a Label}
         space lf Label
-    ] func [label [integer!]] [
+    ] [label [integer!]] [
         return lookup-label-offset label
     ]
 
     jump-if-zero: operation [
         {Jump to a Label if the top of the stack is zero}
         tab space Label
-    ] func [label [integer!]] [
+    ] [label [integer!]] [
         ; must pop stack to make example work
         if zero? take stack [
             return lookup-label-offset label
         ]
-        return null
     ]
 
     jump-if-negative: operation [
         {Jump to a Label if the top of the stack is negative}
         tab tab Label
-    ] func [label [integer!]] [
+    ] [label [integer!]] [
         ; must pop stack to make example work
         if 0 > take stack [
             return lookup-label-offset label
         ]
-        return null
     ]
 
     return-from-subroutine: operation [
         {End a subroutine and transfer control back to the caller}
         tab lf
-    ] func [] [
+    ] [] [
         if empty? callers [
-            print "RUNTIME ERROR: return with no callstack!"
-            quit
+            fail "RUNTIME ERROR: return with no callstack!"
         ]
         return take callstack
     ]
@@ -368,7 +363,7 @@ Flow-Control: category [
     end-program: operation [
         {End the program}
         lf lf
-    ] func [] [
+    ] [] [
         ;
         ; Requesting to jump to the address at the end of the program will be
         ; the same as reaching it normally, terminating the PARSE interpreter.
@@ -397,33 +392,30 @@ IO: category [
     output-character-on-stack: operation [
         {Output the character at the top of the stack}
         space space
-    ] func [] [
+    ] [] [
         print [as issue! first stack]
         take stack
-        return null
     ]
 
     output-number-on-stack: operation [
         {Output the number at the top of the stack}
         space tab
-    ] func [] [
+    ] [] [
         print [first stack]
         take stack
-        return null
     ]
 
     read-character-to-location: operation [
         {Read a character to the location given by the top of the stack}
         tab space
-    ] func [] [
+    ] [] [
         print "READ-CHARACTER-TO-LOCATION NOT IMPLEMENTED"
-        return null
     ]
 
     read-number-to-location: operation [
         {Read a number to the location given by the top of the stack}
         tab tab
-    ] func [] [
+    ] [] [
         print "READ-NUMBER-TO-LOCATION NOT IMPLEMENTED"
     ]
 ]
