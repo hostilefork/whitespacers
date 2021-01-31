@@ -366,7 +366,7 @@ labels: make map! []
 binary-string-to-int: func [s [string!] /local pad] [
 	; debase makes bytes, so to use it we must pad to a
 	; multiple of 8 bits.  better way?
-	pad: rejoin array/initial (8 - mod length? s 8) #"0" 
+	pad: ajoin array/initial (8 - mod length? s 8) #"0" 
 	return to-integer debase/base rejoin [pad s] 2
 ]
 
@@ -724,7 +724,7 @@ whitespace-vm-rule: [
 						]
 					]
 					
-					++ execution-steps
+					execution-steps: execution-steps + 1
 				]
 			]
 		)
@@ -751,7 +751,7 @@ whitespace-vm-rule: [
 ; block of symbols we reduce to characters.
 ; 
 
-program: rejoin [
+program: ajoin [
 
 	; Put a 1 on the stack
 	space space space tab lf 	 
