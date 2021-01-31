@@ -102,11 +102,13 @@ operation: enfixed func [
     return: [object!]
     'name [set-word!]
     spec [block!]
-    args [block!]
     body [block!]
     <with> param
-    <local> group*
+    <local> groups args sw t
 ][
+    args: copy []  ; arguments to generated FUNC are gleaned from the spec
+    groups: copy []  ; used in the COMPOSE of the instruction's arguments
+
     ; We want the operation to be a function (and be able to bind to it as
     ; if it is one).  But there's additional information we want to glue on.
     ; Historical Rebol doesn't have the facility to add data fields to
@@ -121,11 +123,38 @@ operation: enfixed func [
     ; Note: Since this operation is quoting the SET-WORD! on the left, the
     ; evaluator isn't doing an assignment.  We have to do the SET here.
     ;
-    group*: if not empty? args ['(param)]
-
     set name make object! compose [
         description: ensure text! first spec
-        command: copy next spec  ; TBD: validation
+
+        command: collect [
+            for-next pos next spec [
+                any [
+                    all [  ; Whitespace operations can take `Number` or `Label`
+                        block? pos/1
+                        parse pos/1 [set sw set-word!, set t word!]
+                        find [Number Label] t
+                        keep t
+                        elide if not empty? groups [
+                            fail "Mechanism for > 1 operation parameter TBD"
+                        ]
+                        append args to word! sw
+                        append groups '(param)
+                    ]
+                    all [  ; Words specifying the characters
+                        find [space tab lf] pos/1
+                        keep pos/1
+                    ]
+                    all [  ; If we hit a tag, assume we're starting FUNC spec
+                        tag? pos/1
+                        keep pos  ; keep all the rest (e.g. <local>, <static>)
+                        break
+                    ]
+                    fail ["Malformed operation parameter:" mold pos/1]
+                ]
+            ]
+        ]
+
+        (elide group*: if not empty? args ['(param)])
 
         ; for `push: operation ...` this will be `push/push`, reasoning above
         ;
@@ -138,8 +167,7 @@ operation: enfixed func [
 
         rule: reduce [
             command compose/deep '(
-                print "DOes printingPRINT?"
-                instruction: compose [(to word! name) (group*)]
+                instruction: compose [(to word! name) ((groups))]
             )
         ]
     ]
@@ -162,43 +190,43 @@ Stack-Manipulation: category [
 
     push: operation [
         {Push the number onto the stack}
-        space Number
-    ] [value [integer!]] [
+        space [value: Number]
+    ][
         insert stack value
     ]
 
     duplicate-top: operation [
         {Duplicate the top item on the stack}
         lf space
-    ] [] [
+    ][
         insert stack first stack
     ]
 
     duplicate-indexed: operation [
         {Copy Nth item on the stack (given by the arg) to top of stack}
-        tab space Number
-    ] [index [integer!]] [
+        tab space [index: Number]
+    ][
         insert stack pick stack index
     ]
 
     swap-top-2: operation [
         {Swap the top two items on the stack}
         tab tab
-    ] [] [
+    ][
         move/part stack 1 1
     ]
 
     discard-top: operation [
         {Discard the top item on the stack}
         lf lf
-    ] [] [
+    ][
         take stack
     ]
 
     slide-n-values: operation [
         {Slide n items off the stack, keeping the top item}
-        tab lf Number
-    ] [n [integer!]] [
+        tab lf [n: Number]
+    ][
         take/part next stack n
     ]
 ]
@@ -234,35 +262,35 @@ Arithmetic: category [
     add: operation [
         {Addition}
         space space
-    ] [] [
+    ][
         do-arithmetic 'add
     ]
 
     subtract: operation [
         {Subtraction}
         space tab
-    ] [] [
+    ][
         do-arithmetic 'subtract
     ]
 
     multiply: operation [
         {Multiplication}
         space lf
-    ] [] [
+    ][
         do-arithmetic 'multiply
     ]
 
     divide: operation [
         {Integer Division}
         tab space
-    ] [] [
+    ][
         do-arithmetic 'divide
     ]
 
     modulo: operation [
         {Modulo}
         tab tab
-    ] [] [
+    ][
         do-arithmetic 'modulo
     ]
 ]
@@ -282,14 +310,14 @@ Heap-Access: category [
     store: operation [
         {Store}
         space
-    ] [] [
+    ][
         ; hmmm... are value and address left on the stack?
         ; the spec does not explicitly say they are removed
         ; but the spec is pretty liberal about not mentioning it
 
-        value: take stack
-        address: take stack
-        pos: select heap address
+        let value: take stack
+        let address: take stack
+        let pos: select heap address
         either pos [
             poke pos 1 value
         ][
@@ -302,10 +330,10 @@ Heap-Access: category [
     retrieve: operation [
         {Retrieve}
         tab
-    ] [] [
+    ][
         ; again, the spec doesn't explicitly say to remove from stack
-        address: take stack
-        value: select heap address
+        let address: take stack
+        let value: select heap address
         print ["retrieving" value "to stack from address:" address]
         insert stack value
     ]
@@ -324,14 +352,13 @@ Flow-Control: category [
 
     mark-location: operation [
         {Mark a location in the program}
-        space space Label
-    ] [label [integer!] <local> address] [
-        ;
+        space space [label: Label]
+    ][
         ; now we capture the end of this instruction...
         ;
-        address: offset? program-start instruction-end
+        let address: offset? program-start instruction-end
 
-        pos: select labels label
+        let pos: select labels label
         either pos [
             poke pos 1 address
         ][
@@ -341,28 +368,27 @@ Flow-Control: category [
 
     call-subroutine: operation [
         {Call a subroutine}
-        space tab Label
-    ] [label [integer!] <local> current-offset] [
-        ;
+        space tab [label: Label]
+    ][
         ; Call subroutine must be able to find the current parse location
         ; (a.k.a. program counter) so it can put it in the callstack.
         ;
-        current-offset: offset? instruction-start program-start
+        let current-offset: offset? instruction-start program-start
         insert callstack current-offset
         return lookup-label-offset label
     ]
 
     jump-to-label: operation [
         {Jump unconditionally to a Label}
-        space lf Label
-    ] [label [integer!]] [
+        space lf [label: Label]
+    ][
         return lookup-label-offset label
     ]
 
     jump-if-zero: operation [
         {Jump to a Label if the top of the stack is zero}
-        tab space Label
-    ] [label [integer!]] [
+        tab space [label: Label]
+    ][
         ; must pop stack to make example work
         if zero? take stack [
             return lookup-label-offset label
@@ -371,8 +397,8 @@ Flow-Control: category [
 
     jump-if-negative: operation [
         {Jump to a Label if the top of the stack is negative}
-        tab tab Label
-    ] [label [integer!]] [
+        tab tab [label: Label]
+    ][
         ; must pop stack to make example work
         if 0 > take stack [
             return lookup-label-offset label
@@ -382,7 +408,7 @@ Flow-Control: category [
     return-from-subroutine: operation [
         {End a subroutine and transfer control back to the caller}
         tab lf
-    ] [] [
+    ][
         if empty? callers [
             fail "RUNTIME ERROR: return with no callstack!"
         ]
@@ -392,8 +418,7 @@ Flow-Control: category [
     end-program: operation [
         {End the program}
         lf lf
-    ] [] [
-        ;
+    ][
         ; Requesting to jump to the address at the end of the program will be
         ; the same as reaching it normally, terminating the PARSE interpreter.
         ;
@@ -421,7 +446,7 @@ IO: category [
     output-character-on-stack: operation [
         {Output the character at the top of the stack}
         space space
-    ] [] [
+    ][
         print [as issue! first stack]
         take stack
     ]
@@ -429,7 +454,7 @@ IO: category [
     output-number-on-stack: operation [
         {Output the number at the top of the stack}
         space tab
-    ] [] [
+    ][
         print [first stack]
         take stack
     ]
@@ -437,14 +462,14 @@ IO: category [
     read-character-to-location: operation [
         {Read a character to the location given by the top of the stack}
         tab space
-    ] [] [
+    ][
         print "READ-CHARACTER-TO-LOCATION NOT IMPLEMENTED"
     ]
 
     read-number-to-location: operation [
         {Read a number to the location given by the top of the stack}
         tab tab
-    ] [] [
+    ][
         print "READ-NUMBER-TO-LOCATION NOT IMPLEMENTED"
     ]
 ]
