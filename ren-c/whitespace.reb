@@ -172,6 +172,34 @@ Stack-Manipulation: category [
     ] [n [integer!]] [
         take/part next stack n
     ]
+
+    rule: [
+        Stack-Manipulation/IMP [
+            Stack-Manipulation/push/command (
+                instruction: compose [push (param)]
+            )
+
+            | Stack-Manipulation/duplicate-top/command (
+                instruction: copy [duplicate-top]
+            )
+
+            | Stack-Manipulation/duplicate-indexed/command (
+                instruction: compose [duplicate-indexed (param)]
+            )
+
+            | Stack-Manipulation/swap-top-2/command (
+                instruction: copy [swap-top-2]
+            )
+
+            | Stack-Manipulation/discard-top/command (
+                instruction: copy [discard-top]
+            )
+
+            | Stack-Manipulation/slide-n-values/command (
+                instruction: compose [slide-n-values (param)]
+            )
+        ]
+    ]
 ]
 
 
@@ -236,6 +264,30 @@ Arithmetic: category [
     ] [] [
         do-arithmetic 'modulo
     ]
+
+    rule: [
+        Arithmetic/IMP [
+            Arithmetic/add/command (
+                instruction: copy [add]
+            )
+
+            | Arithmetic/subtract/command (
+                instruction: copy [subtract]
+            )
+
+            | Arithmetic/multiply/command (
+                instruction: copy [multiply]
+            )
+
+            | Arithmetic/divide/command (
+                instruction: copy [divide]
+            )
+
+            | Arithmetic/modulo/command (
+                instruction: copy [mod]
+            )
+        ]
+    ]
 ]
 
 
@@ -279,6 +331,18 @@ Heap-Access: category [
         value: select heap address
         print ["retrieving" value "to stack from address:" address]
         insert stack value
+    ]
+
+    rule: [
+        Heap-Access/IMP [
+            Heap-Access/store/command (
+                instruction: copy [store]
+            )
+
+            | Heap-Access/retrieve/command (
+                instruction: copy [retrieve]
+            )
+        ]
     ]
 ]
 
@@ -370,6 +434,40 @@ Flow-Control: category [
         ;
         return length of program-start
     ]
+
+    rule: [
+        Flow-Control/IMP [
+            Flow-Control/mark-location/command (
+                ; This special instruction is ignored, unless it's the
+                ; first pass...
+                instruction: compose [mark-location (param)]
+            )
+
+            | Flow-Control/call-subroutine/command (
+                instruction: compose [call-subroutine (param)]
+            )
+
+            | Flow-Control/jump-to-label/command (
+                instruction: compose [jump-to-label (param)]
+            )
+
+            | Flow-Control/jump-if-zero/command (
+                instruction: compose [jump-if-zero (param)]
+            )
+
+            | Flow-Control/jump-if-negative/command (
+                instruction: compose [jump-if-negative (param)]
+            )
+
+            | Flow-Control/return-from-subroutine/command (
+                instruction: copy [return-from-subroutine]
+            )
+
+            | Flow-Control/end-program/command (
+                instruction: copy [end-program]
+            )
+        ]
+    ]
 ]
 
 
@@ -417,6 +515,26 @@ IO: category [
         tab tab
     ] [] [
         print "READ-NUMBER-TO-LOCATION NOT IMPLEMENTED"
+    ]
+
+    rule: [
+        IO/IMP [
+            IO/output-character-on-stack/command (
+                instruction: copy [output-character-on-stack]
+            )
+
+            | IO/output-number-on-stack/command (
+                instruction: copy [output-number-on-stack]
+            )
+
+            | IO/read-character-to-location/command (
+                instruction: copy [read-character-to-location]
+            )
+
+            | IO/read-number-to-location/command (
+                instruction: copy [write-character-to-location]
+            )
+        ]
     ]
 ]
 
@@ -497,10 +615,7 @@ whitespace-vm-rule: [
     (execution-steps: 0)
 
     ; begin matching parse patterns
-    any [ 1 [
-        ; capture current parse position as start of instruction
-        instruction-start:
-
+    any [
         (
             if (execution-steps > max-execution-steps) [
                 print ["MORE THAN" execution-steps "INSTRUCTIONS EXECUTED"]
@@ -508,116 +623,16 @@ whitespace-vm-rule: [
             ]
         )
 
-        Stack-Manipulation/IMP [
-            Stack-Manipulation/push/command (
-                instruction: compose [push (param)]
-            )
-
-            | Stack-Manipulation/duplicate-top/command (
-                instruction: copy [duplicate-top]
-            )
-
-            | Stack-Manipulation/duplicate-indexed/command (
-                instruction: compose [duplicate-indexed (param)]
-            )
-
-            | Stack-Manipulation/swap-top-2/command (
-                instruction: copy [swap-top-2]
-            )
-
-            | Stack-Manipulation/discard-top/command (
-                instruction: copy [discard-top]
-            )
-
-            | Stack-Manipulation/slide-n-values/command (
-                instruction: compose [slide-n-values (param)]
-            )
+        instruction-start:  ; capture current parse position as start address
+        [
+            Stack-Manipulation/rule
+            | Arithmetic/rule
+            | Heap-Access/rule
+            | Flow-Control/rule
+            | IO/rule
+            | (fail "UNKNOWN OPERATION")
         ]
-
-        | Arithmetic/IMP [
-            Arithmetic/add/command (
-                instruction: copy [add]
-            )
-
-            | Arithmetic/subtract/command (
-                instruction: copy [subtract]
-            )
-
-            | Arithmetic/multiply/command (
-                instruction: copy [multiply]
-            )
-
-            | Arithmetic/divide/command (
-                instruction: copy [divide]
-            )
-
-            | Arithmetic/modulo/command (
-                instruction: copy [mod]
-            )
-        ]
-
-        | Heap-Access/IMP [
-            Heap-Access/store/command (
-                instruction: copy [store]
-            )
-
-            | Heap-Access/retrieve/command (
-                instruction: copy [retrieve]
-            )
-        ]
-
-        | Flow-Control/IMP [
-            Flow-Control/mark-location/command (
-                ; This special instruction is ignored, unless it's the
-                ; first pass...
-                instruction: compose [mark-location (param)]
-            )
-
-            | Flow-Control/call-subroutine/command (
-                instruction: compose [call-subroutine (param)]
-            )
-
-            | Flow-Control/jump-to-label/command (
-                instruction: compose [jump-to-label (param)]
-            )
-
-            | Flow-Control/jump-if-zero/command (
-                instruction: compose [jump-if-zero (param)]
-            )
-
-            | Flow-Control/jump-if-negative/command (
-                instruction: compose [jump-if-negative (param)]
-            )
-
-            | Flow-Control/return-from-subroutine/command (
-                instruction: copy [return-from-subroutine]
-            )
-
-            | Flow-Control/end-program/command (
-                instruction: copy [end-program]
-            )
-        ]
-
-        | IO/IMP [
-            IO/output-character-on-stack/command (
-                instruction: copy [output-character-on-stack]
-            )
-
-            | IO/output-number-on-stack/command (
-                instruction: copy [output-number-on-stack]
-            )
-
-            | IO/read-character-to-location/command (
-                instruction: copy [read-character-to-location]
-            )
-
-            | IO/read-number-to-location/command (
-                instruction: copy [write-character-to-location]
-            )
-        ]
-    ]
-        ; Capture the current parse position at end of instruction
-        instruction-end:
+        instruction-end:  ; also capture position at the end of instruction
 
         ; execute the VM code and optionally give us debug output
         (
