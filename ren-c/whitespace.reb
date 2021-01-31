@@ -42,16 +42,23 @@ Rebol [
 ; whitespace implementations*.  This methodology for putting the parts of the
 ; language to new uses is called "dialecting".
 ;
-; !!! As a first baby step, we simply make CATEGORY and OPERATION aliases for
-; object creation...
+; !!! As a first baby step, we simply make CATEGORY and OPERATION convenient
+; ways to create objects.
 ;
 
-category: func [definition [block!]] [
+category: func [
+    definition [block!]
+][
     make object! definition
 ]
 
-operation: func [spec [block!]] [
-    make object! spec
+operation: func [
+    spec [block!]
+][
+    make object! [
+        description: ensure text! first spec
+        command: copy next spec  ; TBD: validation
+    ]
 ]
 
 
@@ -70,36 +77,33 @@ Stack-Manipulation: category [
     }
 
     push: operation [
-        command: [space Number]
-        description: {Push the number onto the stack}
+        {Push the number onto the stack}
+        space Number
     ]
 
     duplicate-top: operation [
-        command: [lf space]
-        description: {Duplicate the top item on the stack}
+        {Duplicate the top item on the stack}
+        lf space
     ]
 
     duplicate-indexed: operation [
-        command: [tab space Number]
-        description: {
-            Copy the nth item on the stack (given by the argument)
-            onto the top of the stack
-        }
+        {Copy Nth item on the stack (given by the arg) to top of stack}
+        tab space Number
     ]
 
     swap-top-2: operation [
-        command: [tab tab]
-        description: {Swap the top two items on the stack}
+        {Swap the top two items on the stack}
+        tab tab
     ]
 
     discard-top: operation [
-        command: [lf lf]
-        description: {Discard the top item on the stack}
+        {Discard the top item on the stack}
+        lf lf
     ]
 
     slide-n-values: operation [
-        command: [tab lf Number]
-        description: {Slide n items off the stack, keeping the top item}
+        {Slide n items off the stack, keeping the top item}
+        tab lf Number
     ]
 ]
 
@@ -121,28 +125,28 @@ Arithmetic: category [
     }
 
     add: operation [
-        command: [space space]
-        description: {Addition}
+        {Addition}
+        space space
     ]
 
     subtract: operation [
-        command: [space tab]
-        description: {Subtraction}
+        {Subtraction}
+        space tab
     ]
 
     multiply: operation [
-        command: [space lf]
-        description: {Multiplication}
+        {Multiplication}
+        space lf
     ]
 
     divide: operation [
-        command: [tab space]
-        description: {Integer Division}
+        {Integer Division}
+        tab space
     ]
 
     modulo: operation [
-        command: [tab tab]
-        description: {Modulo}
+        {Modulo}
+        tab tab
     ]
 ]
 
@@ -159,13 +163,13 @@ Heap-Access: category [
     }
 
     store: operation [
-        command: [space]
-        description: {Store}
+        {Store}
+        space
     ]
 
     retrieve: operation [
-        command: [tab]
-        description: {Retrieve}
+        {Retrieve}
+        tab
     ]
 ]
 
@@ -181,38 +185,38 @@ Flow-Control: category [
     }
 
     mark-location: operation [
-        command: [space space Label]
-        description: {Mark a location in the program}
+        {Mark a location in the program}
+        space space Label
     ]
 
     call-subroutine: operation [
-        command: [space tab Label]
-        description: {Call a subroutine}
+        {Call a subroutine}
+        space tab Label
     ]
 
     jump-to-label: operation [
-        command: [space lf Label]
-        description: {Jump unconditionally to a Label}
+        {Jump unconditionally to a Label}
+        space lf Label
     ]
 
     jump-if-zero: operation [
-        command: [tab space Label]
-        description: {Jump to a Label if the top of the stack is zero}
+        {Jump to a Label if the top of the stack is zero}
+        tab space Label
     ]
 
     jump-if-negative: operation [
-        command: [tab tab Label]
-        description: {Jump to a Label if the top of the stack is negative}
+        {Jump to a Label if the top of the stack is negative}
+        tab tab Label
     ]
 
     return-from-subroutine: operation [
-        command: [tab lf]
-        description: {End a subroutine and transfer control back to the caller}
+        {End a subroutine and transfer control back to the caller}
+        tab lf
     ]
 
     end-program: operation [
-        command: [lf lf]
-        description: {End the program}
+        {End the program}
+        lf lf
     ]
 ]
 
@@ -231,29 +235,23 @@ IO: category [
     }
 
     output-character-on-stack: operation [
-        command: [space space]
-        description: {Output the character at the top of the stack}
+        {Output the character at the top of the stack}
+        space space
     ]
 
     output-number-on-stack: operation [
-        command: [space tab]
-        description: {Output the number at the top of the stack}
+        {Output the number at the top of the stack}
+        space tab
     ]
 
     read-character-to-location: operation [
-        command: [tab space]
-        description: {
-            Read a character and place it in the location given by the top
-            of the stack
-        }
+        {Read a character to the location given by the top of the stack}
+        tab space
     ]
 
     read-number-to-location: operation [
-        command: [tab tab]
-        description: {
-            Read a number and place it in the location given by the top of
-            the stack
-        }
+        {Read a number to the location given by the top of the stack}
+        tab tab
     ]
 ]
 
