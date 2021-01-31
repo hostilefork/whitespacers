@@ -97,7 +97,7 @@ Rebol [
     the infrastructure to let me express myself like this.  tab and space
     are actually bound to the char codes they represent, so if you wrote:
 
-        str: rejoin ["Hello" space "World"]
+        str: unspaced ["Hello" space "World"]
         print str
 
     That really would print "Hello World".  Although it's worth pointing out
@@ -363,14 +363,14 @@ heap: make map! []
 ; from Label # to program character index
 labels: make map! []
 
-binary-string-to-int: func [s [string!] /local pad] [
+binary-string-to-int: func [s [text!] <local> pad] [
     ; debase makes bytes, so to use it we must pad to a
     ; multiple of 8 bits.  better way?
-    pad: ajoin array/initial (8 - mod length? s 8) #"0"
-    return to-integer debase/base rejoin [pad s] 2
+    pad: unspaced array/initial (8 - modulo (length of s) 8) #"0"
+    return to-integer debase/base unspaced [pad s] 2
 ]
 
-whitespace-number-to-int: func [w [string!] /local bin] [
+whitespace-number-to-int: func [w [text!] <local> bin] [
     ; first character indicates sign
     sign: either space == first w [1] [-1]
 
@@ -384,32 +384,32 @@ whitespace-number-to-int: func [w [string!] /local bin] [
 
 push: func [value [integer!]] [
     insert stack value
-    return none
+    return null
 ]
 
 duplicate-top: func [] [
     insert stack first stack
-    return none
+    return null
 ]
 
 duplicate-indexed: func [index [integer!]] [
     insert stack pick stack param
-    return none
+    return null
 ]
 
 swap-top-2: func [] [
     move/part stack 1 1
-    return none
+    return null
 ]
 
 discard-top: func [] [
     take stack
-    return none
+    return null
 ]
 
 slide-n-values: func [n [integer!]] [
     take/part next stack n
-    return none
+    return null
 ]
 
 do-arithmetic: func [operator [word!]] [
@@ -420,7 +420,7 @@ do-arithmetic: func [operator [word!]] [
         operator second stack first stack
     ]
     take/part next stack 2
-    return none
+    return null
 ]
 
 do-heap-store: [
@@ -432,12 +432,12 @@ do-heap-store: [
     pos: select heap address
     either pos [
         poke pos 1 value
-    ] [
+    ][
         repend heap [value address]
     ]
 
     take/part stack 2
-    return none
+    return null
 ]
 
 do-heap-retrieve: [
@@ -446,12 +446,12 @@ do-heap-retrieve: [
     value: select heap address
     print ["retrieving" value "to stack from address:" address]
     insert stack value
-    return none
+    return null
 ]
 
 lookup-label-offset: func [label [integer!]] [
     address: select labels label
-    if none? address [
+    if null? address [
         print ["RUNTIME ERROR: Jump to undefined Label #" label]
         quit
     ]
@@ -462,10 +462,10 @@ mark-location: func [label [integer!] address [integer!]] [
     pos: select labels label
     either pos [
         poke pos 1 address
-    ] [
+    ][
         repend labels [label address]
     ]
-    return none
+    return null
 ]
 
 call-subroutine: func [current-offset [integer!]] [
@@ -482,7 +482,7 @@ jump-if-zero: func [] [
     if zero? take stack [
         return lookup-label-offset param
     ]
-    return none
+    return null
 ]
 
 jump-if-negative: func [] [
@@ -490,7 +490,7 @@ jump-if-negative: func [] [
     if 0 > take stack [
         return lookup-label-offset param
     ]
-    return none
+    return null
 ]
 
 return-from-subroutine: func [] [
@@ -506,15 +506,15 @@ return-from-subroutine: func [] [
 ; but the sample proves we must!
 
 output-character-on-stack: func [] [
-    print rejoin [to-char first stack]
+    print [as issue! first stack]
     take stack
-    return none
+    return null
 ]
 
 output-number-on-stack: func [] [
-    print rejoin [first stack]
+    print [first stack]
     take stack
-    return none
+    return null
 ]
 
 
@@ -714,10 +714,10 @@ whitespace-vm-rule: [
                     ; most instructions run on the second pass...
                     either 'end-program == first instruction [
                         next-instruction: tail program-start
-                    ] [
+                    ][
                         result: do instruction
 
-                        if not none? result [
+                        if not null? result [
                             ; if the instruction returned a value, use
                             ; as the offset of the next instruction to execute
                             next-instruction: skip program-start result
@@ -745,13 +745,13 @@ whitespace-vm-rule: [
 ;
 ;     http://compsoc.dur.ac.uk/whitespace/tutorial.php
 ;
-; Note that space, tab, lf are defined in Rebol.  The rejoin
+; Note that space, tab, lf are defined in Rebol.  The UNSPACED
 ; operation turns this into a bona-fide string.  But it's "easier
 ; to read" (or at least, to add comments) when we start out as a
 ; block of symbols we reduce to characters.
 ;
 
-program: ajoin [
+program: unspaced [
 
     ; Put a 1 on the stack
     space space space tab lf
@@ -847,6 +847,6 @@ either parse program whitespace-vm-rule [
     print ["stack:" mold stack]
     print ["callstack:" mold callstack]
     print ["heap:" mold heap]
-] [
+][
     print "UNEXPECTED TERMINATION (Internal Error)"
 ]
