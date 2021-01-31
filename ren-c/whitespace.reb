@@ -67,6 +67,7 @@ category: func [
         for-each item definition [
             keep match set-word! item
         ]
+        keep 'rule:  ; we're going to add a rule
         keep ['~unset~]
     ]
 
@@ -75,6 +76,23 @@ category: func [
     ;
     do map-each item definition [
         (in obj try match set-word! item) else [item]
+    ]
+
+    ; We should really know which things are operations to ask them for their
+    ; rule contribution.  But just assume any OBJECT! is an operation.
+    ;
+    obj/rule: reduce [
+        obj/imp
+        collect [
+            for-each [key val] obj [
+                if key == 'rule [continue]  ; what we're setting...
+                if object? val [
+                    keep val/rule
+                    keep '|
+                ]
+            ]
+            keep 'false
+        ]
     ]
 
     return obj
@@ -86,6 +104,8 @@ operation: enfixed func [
     spec [block!]
     args [block!]
     body [block!]
+    <with> param
+    <local> group*
 ][
     ; We want the operation to be a function (and be able to bind to it as
     ; if it is one).  But there's additional information we want to glue on.
@@ -101,6 +121,8 @@ operation: enfixed func [
     ; Note: Since this operation is quoting the SET-WORD! on the left, the
     ; evaluator isn't doing an assignment.  We have to do the SET here.
     ;
+    group*: if not empty? args ['(param)]
+
     set name make object! compose [
         description: ensure text! first spec
         command: copy next spec  ; TBD: validation
@@ -113,6 +135,13 @@ operation: enfixed func [
         ; object representing the virtual machine).
         ;
         (name) func args compose [((body)), return null]
+
+        rule: reduce [
+            command compose/deep '(
+                print "DOes printingPRINT?"
+                instruction: compose [(to word! name) (group*)]
+            )
+        ]
     ]
 ]
 
@@ -171,34 +200,6 @@ Stack-Manipulation: category [
         tab lf Number
     ] [n [integer!]] [
         take/part next stack n
-    ]
-
-    rule: [
-        Stack-Manipulation/IMP [
-            Stack-Manipulation/push/command (
-                instruction: compose [push (param)]
-            )
-
-            | Stack-Manipulation/duplicate-top/command (
-                instruction: copy [duplicate-top]
-            )
-
-            | Stack-Manipulation/duplicate-indexed/command (
-                instruction: compose [duplicate-indexed (param)]
-            )
-
-            | Stack-Manipulation/swap-top-2/command (
-                instruction: copy [swap-top-2]
-            )
-
-            | Stack-Manipulation/discard-top/command (
-                instruction: copy [discard-top]
-            )
-
-            | Stack-Manipulation/slide-n-values/command (
-                instruction: compose [slide-n-values (param)]
-            )
-        ]
     ]
 ]
 
@@ -264,30 +265,6 @@ Arithmetic: category [
     ] [] [
         do-arithmetic 'modulo
     ]
-
-    rule: [
-        Arithmetic/IMP [
-            Arithmetic/add/command (
-                instruction: copy [add]
-            )
-
-            | Arithmetic/subtract/command (
-                instruction: copy [subtract]
-            )
-
-            | Arithmetic/multiply/command (
-                instruction: copy [multiply]
-            )
-
-            | Arithmetic/divide/command (
-                instruction: copy [divide]
-            )
-
-            | Arithmetic/modulo/command (
-                instruction: copy [mod]
-            )
-        ]
-    ]
 ]
 
 
@@ -331,18 +308,6 @@ Heap-Access: category [
         value: select heap address
         print ["retrieving" value "to stack from address:" address]
         insert stack value
-    ]
-
-    rule: [
-        Heap-Access/IMP [
-            Heap-Access/store/command (
-                instruction: copy [store]
-            )
-
-            | Heap-Access/retrieve/command (
-                instruction: copy [retrieve]
-            )
-        ]
     ]
 ]
 
@@ -434,40 +399,6 @@ Flow-Control: category [
         ;
         return length of program-start
     ]
-
-    rule: [
-        Flow-Control/IMP [
-            Flow-Control/mark-location/command (
-                ; This special instruction is ignored, unless it's the
-                ; first pass...
-                instruction: compose [mark-location (param)]
-            )
-
-            | Flow-Control/call-subroutine/command (
-                instruction: compose [call-subroutine (param)]
-            )
-
-            | Flow-Control/jump-to-label/command (
-                instruction: compose [jump-to-label (param)]
-            )
-
-            | Flow-Control/jump-if-zero/command (
-                instruction: compose [jump-if-zero (param)]
-            )
-
-            | Flow-Control/jump-if-negative/command (
-                instruction: compose [jump-if-negative (param)]
-            )
-
-            | Flow-Control/return-from-subroutine/command (
-                instruction: copy [return-from-subroutine]
-            )
-
-            | Flow-Control/end-program/command (
-                instruction: copy [end-program]
-            )
-        ]
-    ]
 ]
 
 
@@ -515,26 +446,6 @@ IO: category [
         tab tab
     ] [] [
         print "READ-NUMBER-TO-LOCATION NOT IMPLEMENTED"
-    ]
-
-    rule: [
-        IO/IMP [
-            IO/output-character-on-stack/command (
-                instruction: copy [output-character-on-stack]
-            )
-
-            | IO/output-number-on-stack/command (
-                instruction: copy [output-number-on-stack]
-            )
-
-            | IO/read-character-to-location/command (
-                instruction: copy [read-character-to-location]
-            )
-
-            | IO/read-number-to-location/command (
-                instruction: copy [write-character-to-location]
-            )
-        ]
     ]
 ]
 
