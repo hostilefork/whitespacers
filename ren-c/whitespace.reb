@@ -34,17 +34,34 @@ Rebol [
     ]
 ]
 
+;
+; WHITESPACER IMPLEMENTATION DIALECT
+;
+; Our goal is to streamline the implementation by bending Ren-C into something
+; that feels like *a programming language designed specially for writing
+; whitespace implementations*.  This methodology for putting the parts of the
+; language to new uses is called "dialecting".
+;
+; !!! As a first baby step, we simply make CATEGORY and OPERATION aliases for
+; object creation...
+;
+
+category: func [definition [block!]] [
+    make object! definition
+]
+
+operation: func [spec [block!]] [
+    make object! spec
+]
+
 
 ;
 ; CONTROL SEQUENCE DEFINITIONS
 ;
-; This really shouldn't count in the size of the program, because it's
-; just the specification:
-;
 ;     http://compsoc.dur.ac.uk/whitespace/tutorial.php
 ;
 
-Stack-Manipulation: [
+Stack-Manipulation: category [
     IMP: [space]
 
     description: {
@@ -52,36 +69,42 @@ Stack-Manipulation: [
         shortness of the IMP [space].
     }
 
-    push: [
+    push: operation [
         command: [space Number]
         description: {Push the number onto the stack}
     ]
-    duplicate-top: [
+
+    duplicate-top: operation [
         command: [lf space]
         description: {Duplicate the top item on the stack}
     ]
-    duplicate-indexed: [
+
+    duplicate-indexed: operation [
         command: [tab space Number]
         description: {
             Copy the nth item on the stack (given by the argument)
             onto the top of the stack
         }
     ]
-    swap-top-2: [
+
+    swap-top-2: operation [
         command: [tab tab]
         description: {Swap the top two items on the stack}
     ]
-    discard-top: [
+
+    discard-top: operation [
         command: [lf lf]
         description: {Discard the top item on the stack}
     ]
-    slide-n-values: [
+
+    slide-n-values: operation [
         command: [tab lf Number]
         description: {Slide n items off the stack, keeping the top item}
     ]
 ]
 
-Arithmetic: [
+
+Arithmetic: category [
     IMP: [tab space]
 
     description: {
@@ -97,34 +120,36 @@ Arithmetic: [
         local variables.
     }
 
-    add: [
+    add: operation [
         command: [space space]
         description: {Addition}
     ]
 
-    subtract: [
+    subtract: operation [
         command: [space tab]
         description: {Subtraction}
     ]
 
-    multiply: [
+    multiply: operation [
         command: [space lf]
         description: {Multiplication}
     ]
 
-    divide: [
+    divide: operation [
         command: [tab space]
         description: {Integer Division}
     ]
 
-    modulo: [
+    modulo: operation [
         command: [tab tab]
         description: {Modulo}
     ]
 ]
 
-Heap-Access: [
+
+Heap-Access: category [
     IMP: [tab tab]
+
     description: {
         Heap access commands look at the stack to find the address of items
         to be stored or retrieved. To store an item, push the address then the
@@ -133,19 +158,21 @@ Heap-Access: [
         the location at the top of the stack.
     }
 
-    store: [
+    store: operation [
         command: [space]
         description: {Store}
     ]
 
-    retrieve: [
+    retrieve: operation [
         command: [tab]
         description: {Retrieve}
     ]
 ]
 
-Flow-Control: [
+
+Flow-Control: category [
     IMP: [lf]
+
     description: {
         Flow control operations are also common. Subroutines are marked by
         labels, as well as the targets of conditional and unconditional jumps,
@@ -153,44 +180,46 @@ Flow-Control: [
         [lf lf lf] so that the interpreter can exit cleanly.
     }
 
-    mark-location: [
+    mark-location: operation [
         command: [space space Label]
         description: {Mark a location in the program}
     ]
 
-    call-subroutine: [
+    call-subroutine: operation [
         command: [space tab Label]
         description: {Call a subroutine}
     ]
 
-    jump-to-label: [
+    jump-to-label: operation [
         command: [space lf Label]
         description: {Jump unconditionally to a Label}
     ]
 
-    jump-if-zero: [
+    jump-if-zero: operation [
         command: [tab space Label]
         description: {Jump to a Label if the top of the stack is zero}
     ]
 
-    jump-if-negative: [
+    jump-if-negative: operation [
         command: [tab tab Label]
         description: {Jump to a Label if the top of the stack is negative}
     ]
 
-    return-from-subroutine: [
+    return-from-subroutine: operation [
         command: [tab lf]
         description: {End a subroutine and transfer control back to the caller}
     ]
 
-    end-program: [
+    end-program: operation [
         command: [lf lf]
         description: {End the program}
     ]
 ]
 
-IO: [
+
+IO: category [
     IMP: [tab lf]
+
     description: {
         Finally, we need to be able to interact with the user. There are IO
         instructions for reading and writing numbers and individual characters.
@@ -201,17 +230,17 @@ IO: [
         result from the top of the stack.
     }
 
-    output-character-on-stack: [
+    output-character-on-stack: operation [
         command: [space space]
         description: {Output the character at the top of the stack}
     ]
 
-    output-number-on-stack: [
+    output-number-on-stack: operation [
         command: [space tab]
         description: {Output the number at the top of the stack}
     ]
 
-    read-character-to-location: [
+    read-character-to-location: operation [
         command: [tab space]
         description: {
             Read a character and place it in the location given by the top
@@ -219,7 +248,7 @@ IO: [
         }
     ]
 
-    read-number-to-location: [
+    read-number-to-location: operation [
         command: [tab tab]
         description: {
             Read a number and place it in the location given by the top of
