@@ -42,22 +42,69 @@ Rebol [
 ; whitespace implementations*.  This methodology for putting the parts of the
 ; language to new uses is called "dialecting".
 ;
-; !!! As a first baby step, we simply make CATEGORY and OPERATION convenient
-; ways to create objects.
-;
 
 category: func [
+    return: [object!]
     definition [block!]
+    <local> obj
 ][
-    make object! definition
+    ; We want the category to create an object, but we don't want the fields of
+    ; the object to be binding inside the function bodies defined in the
+    ; category.  e.g. just because the category has an ADD operation, we don't
+    ; want to overwrite the binding of Rebol's ADD which we would use.
+    ;
+    ; !!! This is part of a broad current open design question, being actively
+    ; thought through:
+    ;
+    ; https://forum.rebol.info/t/1442
+    ;
+    ; It should have a turnkey solution like what this code is doing.  We just
+    ; don't know exactly what to call it.
+
+    ; First make an empty object with all the SET-WORD!s at the top level
+    ;
+    obj: make object! collect [
+        for-each item definition [
+            keep match set-word! item
+        ]
+        keep ['~unset~]
+    ]
+
+    ; Now, run a block which is a copy where all the SET-WORD!s are bound
+    ; into the object, but only those top level set-words...nothing else.
+    ;
+    do map-each item definition [
+        (in obj try match set-word! item) else [item]
+    ]
+
+    return obj
 ]
 
-operation: func [
+operation: enfixed func [
+    return: [object!]
+    'name [set-word!]
     spec [block!]
+    action [action!]
 ][
-    make object! [
+    ; We want the operation to be a function (and be able to bind to it as
+    ; if it is one).  But there's additional information we want to glue on.
+    ; Historical Rebol doesn't have the facility to add data fields to
+    ; functions as if they were objects (like JavaScript can).  But Ren-C
+    ; offers a connected "meta" object.  We could make `some-func.field`
+    ; notation access the associated meta fields, though this would be
+    ; an inconsistent syntax.
+    ;
+    ; Temporarily just return an object, but name the action inside it the
+    ; same thing as what we capture from the callsite as the SET-WORD!.
+    ;
+    ; Note: Since this operation is quoting the SET-WORD! on the left, the
+    ; evaluator isn't doing an assignment.  We have to do the SET here.
+    ;
+    set name make object! compose [
         description: ensure text! first spec
         command: copy next spec  ; TBD: validation
+
+        (name) '(:action)  ; for `push: operation ...` this will be `push/push`
     ]
 ]
 
@@ -79,32 +126,62 @@ Stack-Manipulation: category [
     push: operation [
         {Push the number onto the stack}
         space Number
+    ] func [value [integer!]] [
+        insert stack value
+        return null
     ]
 
     duplicate-top: operation [
         {Duplicate the top item on the stack}
         lf space
+    ] func [] [
+        insert stack first stack
+        return null
     ]
 
     duplicate-indexed: operation [
         {Copy Nth item on the stack (given by the arg) to top of stack}
         tab space Number
+    ] func [index [integer!]] [
+        insert stack pick stack param
+        return null
     ]
 
     swap-top-2: operation [
         {Swap the top two items on the stack}
         tab tab
+    ] func [] [
+        move/part stack 1 1
+        return null
     ]
 
     discard-top: operation [
         {Discard the top item on the stack}
         lf lf
+    ] func [] [
+        take stack
+        return null
     ]
 
     slide-n-values: operation [
         {Slide n items off the stack, keeping the top item}
         tab lf Number
+    ] func [n [integer!]] [
+        take/part next stack n
+        return null
     ]
+]
+
+
+do-arithmetic: func [operator [word!]] [
+    ; note the first item pushed is the left of the operation.
+    ; could do infix except Rebol's modulo is prefix (mod a b)
+
+    insert stack do reduce [
+        operator second stack first stack
+    ]
+    take/part next stack 2
+    return null
 ]
 
 
@@ -127,26 +204,36 @@ Arithmetic: category [
     add: operation [
         {Addition}
         space space
+    ] func [] [
+        do-arithmetic 'add
     ]
 
     subtract: operation [
         {Subtraction}
         space tab
+    ] func [] [
+        do-arithmetic 'subtract
     ]
 
     multiply: operation [
         {Multiplication}
         space lf
+    ] func [] [
+        do-arithmetic 'multiply
     ]
 
     divide: operation [
         {Integer Division}
         tab space
+    ] func [] [
+        do-arithmetic 'divide
     ]
 
     modulo: operation [
         {Modulo}
         tab tab
+    ] func [] [
+        do-arithmetic 'modulo
     ]
 ]
 
@@ -165,11 +252,34 @@ Heap-Access: category [
     store: operation [
         {Store}
         space
+    ] func [] [
+        ; hmmm... are value and address left on the stack?
+        ; the spec does not explicitly say they are removed
+        ; but the spec is pretty liberal about not mentioning it
+
+        value: take stack
+        address: take stack
+        pos: select heap address
+        either pos [
+            poke pos 1 value
+        ][
+            repend heap [value address]
+        ]
+
+        take/part stack 2
+        return null
     ]
 
     retrieve: operation [
         {Retrieve}
         tab
+    ] func [] [
+        ; again, the spec doesn't explicitly say to remove from stack
+        address: take stack
+        value: select heap address
+        print ["retrieving" value "to stack from address:" address]
+        insert stack value
+        return null
     ]
 ]
 
@@ -187,36 +297,73 @@ Flow-Control: category [
     mark-location: operation [
         {Mark a location in the program}
         space space Label
+    ] func [label [integer!] address [integer!]] [
+        pos: select labels label
+        either pos [
+            poke pos 1 address
+        ][
+            repend labels [label address]
+        ]
+        return null
     ]
 
     call-subroutine: operation [
         {Call a subroutine}
         space tab Label
+    ] func [current-offset [integer!]] [
+        insert callstack current-offset
+        return lookup-label-offset param
     ]
 
     jump-to-label: operation [
         {Jump unconditionally to a Label}
         space lf Label
+    ] func [] [
+        return lookup-label-offset param
     ]
 
     jump-if-zero: operation [
         {Jump to a Label if the top of the stack is zero}
         tab space Label
+    ] func [] [
+        ; must pop stack to make example work
+        if zero? take stack [
+            return lookup-label-offset param
+        ]
+        return null
     ]
 
     jump-if-negative: operation [
         {Jump to a Label if the top of the stack is negative}
         tab tab Label
+    ] func [] [
+        ; must pop stack to make example work
+        if 0 > take stack [
+            return lookup-label-offset param
+        ]
+        return null
     ]
 
     return-from-subroutine: operation [
         {End a subroutine and transfer control back to the caller}
         tab lf
+    ] func [] [
+        if empty? callers [
+            print "RUNTIME ERROR: return with no callstack!"
+            quit
+        ]
+        return take callstack
     ]
 
     end-program: operation [
         {End the program}
         lf lf
+    ] func [] [
+        ;
+        ; Requesting to jump to the address at the end of the program will be
+        ; the same as reaching it normally, terminating the PARSE interpreter.
+        ;
+        return length of program-start
     ]
 ]
 
@@ -232,26 +379,42 @@ IO: category [
 
         The read instructions take the heap address in which to store the
         result from the top of the stack.
+
+        Note: spec didn't say we should pop the stack when we output, but
+        the sample proves we must!
     }
 
     output-character-on-stack: operation [
         {Output the character at the top of the stack}
         space space
+    ] func [] [
+        print [as issue! first stack]
+        take stack
+        return null
     ]
 
     output-number-on-stack: operation [
         {Output the number at the top of the stack}
         space tab
+    ] func [] [
+        print [first stack]
+        take stack
+        return null
     ]
 
     read-character-to-location: operation [
         {Read a character to the location given by the top of the stack}
         tab space
+    ] func [] [
+        print "READ-CHARACTER-TO-LOCATION NOT IMPLEMENTED"
+        return null
     ]
 
     read-number-to-location: operation [
         {Read a number to the location given by the top of the stack}
         tab tab
+    ] func [] [
+        print "READ-NUMBER-TO-LOCATION NOT IMPLEMENTED"
     ]
 ]
 
@@ -291,73 +454,6 @@ whitespace-number-to-int: func [w [text!] <local> bin] [
     return sign * (binary-string-to-int bin)
 ]
 
-push: func [value [integer!]] [
-    insert stack value
-    return null
-]
-
-duplicate-top: func [] [
-    insert stack first stack
-    return null
-]
-
-duplicate-indexed: func [index [integer!]] [
-    insert stack pick stack param
-    return null
-]
-
-swap-top-2: func [] [
-    move/part stack 1 1
-    return null
-]
-
-discard-top: func [] [
-    take stack
-    return null
-]
-
-slide-n-values: func [n [integer!]] [
-    take/part next stack n
-    return null
-]
-
-do-arithmetic: func [operator [word!]] [
-    ; note the first item pushed is the left of the operation.
-    ; could do infix except Rebol's modulo is prefix (mod a b)
-
-    insert stack do reduce [
-        operator second stack first stack
-    ]
-    take/part next stack 2
-    return null
-]
-
-do-heap-store: [
-    ; hmmm... are value and address left on the stack?
-    ; the spec does not explicitly say they are removed
-    ; but the spec is pretty liberal about not mentioning it
-    value: take stack
-    address: take stack
-    pos: select heap address
-    either pos [
-        poke pos 1 value
-    ][
-        repend heap [value address]
-    ]
-
-    take/part stack 2
-    return null
-]
-
-do-heap-retrieve: [
-    ; again, the spec doesn't explicitly say to remove from stack
-    address: take stack
-    value: select heap address
-    print ["retrieving" value "to stack from address:" address]
-    insert stack value
-    return null
-]
-
 lookup-label-offset: func [label [integer!]] [
     address: select labels label
     if null? address [
@@ -367,68 +463,10 @@ lookup-label-offset: func [label [integer!]] [
     return address
 ]
 
-mark-location: func [label [integer!] address [integer!]] [
-    pos: select labels label
-    either pos [
-        poke pos 1 address
-    ][
-        repend labels [label address]
-    ]
-    return null
-]
-
-call-subroutine: func [current-offset [integer!]] [
-    insert callstack current-offset
-    return lookup-label-offset param
-]
-
-jump-to-label: func [] [
-    return lookup-label-offset param
-]
-
-jump-if-zero: func [] [
-    ; must pop stack to make example work
-    if zero? take stack [
-        return lookup-label-offset param
-    ]
-    return null
-]
-
-jump-if-negative: func [] [
-    ; must pop stack to make example work
-    if 0 > take stack [
-        return lookup-label-offset param
-    ]
-    return null
-]
-
-return-from-subroutine: func [] [
-    if empty? callers [
-        print "RUNTIME ERROR: return with no callstack!"
-        quit
-    ]
-    return take callstack
-]
-
-
-; spec didn't say we should pop the stack when we output
-; but the sample proves we must!
-
-output-character-on-stack: func [] [
-    print [as issue! first stack]
-    take stack
-    return null
-]
-
-output-number-on-stack: func [] [
-    print [first stack]
-    take stack
-    return null
-]
 
 
 ;
-; REBOL PARSE DIALECT FOR WHITESPACE LANGUAGE
+; REBOL PARSE-BASED INTERPRETER FOR WHITESPACE LANGUAGE
 ;
 
 ; if the number rule matches, then param will contain the
@@ -474,7 +512,7 @@ whitespace-vm-rule: [
             )
 
             | Stack-Manipulation/duplicate-top/command (
-                instruction: [duplicate-top]
+                instruction: copy [duplicate-top]
             )
 
             | Stack-Manipulation/duplicate-indexed/command (
@@ -482,11 +520,11 @@ whitespace-vm-rule: [
             )
 
             | Stack-Manipulation/swap-top-2/command (
-                instruction: [swap-top-2]
+                instruction: copy [swap-top-2]
             )
 
             | Stack-Manipulation/discard-top/command (
-                instruction: [discard-top]
+                instruction: copy [discard-top]
             )
 
             | Stack-Manipulation/slide-n-values/command (
@@ -496,33 +534,33 @@ whitespace-vm-rule: [
 
         | Arithmetic/IMP [
             Arithmetic/add/command (
-                instruction: [do-arithmetic 'add]
+                instruction: copy [add]
             )
 
             | Arithmetic/subtract/command (
-                instruction: [do-arithmetic 'subtract]
+                instruction: copy [subtract]
             )
 
             | Arithmetic/multiply/command (
-                instruction: [do-arithmetic 'multiply]
+                instruction: copy [multiply]
             )
 
             | Arithmetic/divide/command (
-                instruction: [do-arithmetic 'divide]
+                instruction: copy [divide]
             )
 
             | Arithmetic/modulo/command (
-                instruction: [do-arithmetic 'mod]
+                instruction: copy [mod]
             )
         ]
 
         | Heap-Access/IMP [
             Heap-Access/store/command (
-                instruction: [do-heap-store]
+                instruction: copy [store]
             )
 
             | Heap-Access/retrieve/command (
-                instruction: [do-heap-retrieve]
+                instruction: copy [retrieve]
             )
         ]
 
@@ -543,43 +581,41 @@ whitespace-vm-rule: [
             )
 
             | Flow-Control/jump-to-label/command (
-                instruction: [jump-to-label]
+                instruction: copy [jump-to-label]
             )
 
             | Flow-Control/jump-if-zero/command (
-                instruction: [jump-if-zero]
+                instruction: copy [jump-if-zero]
             )
 
             | Flow-Control/jump-if-negative/command (
-                instruction: [jump-if-negative]
+                instruction: copy [jump-if-negative]
             )
 
             | Flow-Control/return-from-subroutine/command (
-                instruction: [return-from-subroutine]
+                instruction: copy [return-from-subroutine]
             )
 
             | Flow-Control/end-program/command (
-                instruction: [end-program]
+                instruction: copy [end-program]
             )
         ]
 
         | IO/IMP [
             IO/output-character-on-stack/command (
-                instruction: [output-character-on-stack]
+                instruction: copy [output-character-on-stack]
             )
 
             | IO/output-number-on-stack/command (
-                instruction: [output-number-on-stack]
+                instruction: copy [output-number-on-stack]
             )
 
-            ; input routines not implemented yet
-
             | IO/read-character-to-location/command (
-                print "READ NOT IMPLEMENTED"
+                instruction: copy [read-character-to-location]
             )
 
             | IO/read-number-to-location/command (
-                print "WRITE NOT IMPLEMENTED"
+                instruction: copy [write-character-to-location]
             )
         ]
     ]
@@ -602,7 +638,39 @@ whitespace-vm-rule: [
             ; were before this code
             next-instruction: instruction-end
 
-            either 'mark-location == first instruction [
+            ; !!! The original implementation put the functions to handle the
+            ; opcodes in global scope, so when an instruction said something
+            ; like [jump-if-zero] it would be found.  Now the functions are
+            ; inside one of the category objects.  As a temporary measure to
+            ; keep things working, just try binding the instruction in all
+            ; the category objects.
+            ;
+            ; !!! Also, this isn't going to give you an ACTION!, it gives an
+            ; OBJECT! which has an action as a member.  So you have to pick
+            ; the action out of it.  Very ugly...fix this soon!
+
+            word: take instruction
+
+            word: any [
+                in Stack-Manipulation word
+                in Arithmetic word
+                in Heap-Access word
+                in Flow-Control word
+                in IO word
+            ] else [
+                fail "instruction WORD! not foundin any of the categories"
+            ]
+
+            ; !!! Furthering the hackishness of the moment, we bind to an
+            ; action in the object with a field name the same as the word.
+            ; So `push/push`, or `add/add`.  See OPERATION for a description
+            ; of why we're doing this for now.
+            ;
+            word: non null in get word word
+            ensure action! get word
+            insert instruction word
+
+            either 'mark-location == word [
                 if (pass == 1) [
                     if debug-steps [
                         print ["(" mold instruction ")"]
@@ -621,16 +689,12 @@ whitespace-vm-rule: [
                     ]
 
                     ; most instructions run on the second pass...
-                    either 'end-program == first instruction [
-                        next-instruction: tail program-start
-                    ][
-                        result: do instruction
+                    result: do instruction
 
-                        if not null? result [
-                            ; if the instruction returned a value, use
-                            ; as the offset of the next instruction to execute
-                            next-instruction: skip program-start result
-                        ]
+                    if not null? result [
+                        ; if the instruction returned a value, use
+                        ; as the offset of the next instruction to execute
+                        next-instruction: skip program-start result
                     ]
 
                     execution-steps: execution-steps + 1
