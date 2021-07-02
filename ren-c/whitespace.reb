@@ -514,7 +514,7 @@ lookup-label-offset: func [label [integer!]] [
     address: select labels label
     if null? address [
         print ["RUNTIME ERROR: Jump to undefined Label #" label]
-        quit
+        quit 1
     ]
     return address
 ]
@@ -557,7 +557,7 @@ whitespace-vm-rule: [
         (
             if (execution-steps > max-execution-steps) [
                 print ["MORE THAN" execution-steps "INSTRUCTIONS EXECUTED"]
-                quit
+                quit 1
             ]
         )
 
@@ -747,7 +747,7 @@ print "LABEL SCAN PHASE"
 pass: 1
 uparse program whitespace-vm-rule else [
     print "INVALID INPUT"
-    quit
+    quit 1
 ]
 
 print mold labels
@@ -764,9 +764,12 @@ print separator
 pass: 2
 uparse program whitespace-vm-rule else [
     print "UNEXPECTED TERMINATION (Internal Error)"
+    quit 1
 ]
 
 print "Program End Encountered"
 print ["stack:" mold stack]
 print ["callstack:" mold callstack]
 print ["heap:" mold heap]
+
+quit 0  ; signal success to calling shell via 0 exit code
