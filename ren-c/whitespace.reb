@@ -65,10 +65,10 @@ category: func [
     ;
     obj: make object! collect [
         for-each item definition [
-            keep match set-word! item
+            keep try ^(match set-word! item)
         ]
-        keep 'rule:  ; we're going to add a rule
-        keep ['~unset~]
+        keep [rule:]  ; we're going to add a rule
+        keep [~unset~]
     ]
 
     ; Now, run a block which is a copy where all the SET-WORD!s are bound
@@ -88,10 +88,10 @@ category: func [
                 if key == 'rule [continue]  ; what we're setting...
                 if object? val [
                     keep val/rule
-                    keep '|
+                    keep [|]
                 ]
             ]
-            keep 'false
+            keep [false]
         ]
     ]
 
@@ -131,18 +131,18 @@ operation: enfixed func [
                 any [
                     all [  ; Whitespace operations can take `Number` or `Label`
                         block? pos/1
-                        parse pos/1 [set sw set-word!, set t word!]
-                        find [Number Label] t
-                        keep t
+                        parse? pos/1 [set sw set-word!, set t word!]
+                        find [Number Label] ^t
+                        keep ^t
                         elide if not empty? groups [
                             fail "Mechanism for > 1 operation parameter TBD"
                         ]
-                        append args to word! sw
-                        append groups '(param)
+                        append args ^(to word! sw)
+                        append groups [(param)]
                     ]
                     all [  ; Words specifying the characters
-                        find [space tab lf] pos/1
-                        keep pos/1
+                        find [space tab lf] ^pos/1
+                        keep ^pos/1
                     ]
                     all [  ; If we hit a tag, assume we're starting FUNC spec
                         tag? pos/1
@@ -541,17 +541,19 @@ pass: 1
 
 max-execution-steps: 1000
 debug-steps: true
-extended-debug-steps: false
+extended-debug-steps: true
 
 whitespace-vm-rule: [
     ; capture start of program
-    program-start:
+    program-start: here
 
     ; initialize count
     (execution-steps: 0)
 
     ; begin matching parse patterns
-    any [
+    while [
+        not end
+
         (
             if (execution-steps > max-execution-steps) [
                 print ["MORE THAN" execution-steps "INSTRUCTIONS EXECUTED"]
@@ -559,7 +561,7 @@ whitespace-vm-rule: [
             ]
         )
 
-        instruction-start:  ; capture current parse position as start address
+        instruction-start: here  ;  current parse position is start address
         [
             Stack-Manipulation/rule
             | Arithmetic/rule
@@ -568,7 +570,7 @@ whitespace-vm-rule: [
             | IO/rule
             | (fail "UNKNOWN OPERATION")
         ]
-        instruction-end:  ; also capture position at the end of instruction
+        instruction-end: here  ; also capture position at the end of instruction
 
         ; execute the VM code and optionally give us debug output
         (
@@ -606,7 +608,7 @@ whitespace-vm-rule: [
                 in Flow-Control word
                 in IO word
             ] else [
-                fail "instruction WORD! not foundin any of the categories"
+                fail "instruction WORD! not found in any of the categories"
             ]
 
             ; !!! Furthering the hackishness of the moment, we bind to an
@@ -616,7 +618,7 @@ whitespace-vm-rule: [
             ;
             word: non null in get word word
             ensure action! get word
-            insert instruction word
+            insert instruction ^word
 
             either 'mark-location == word [
                 if (pass == 1) [
@@ -648,7 +650,7 @@ whitespace-vm-rule: [
         )
 
         ; Set the parse position to whatever we set in the code above
-        :next-instruction
+        seek :next-instruction
     ]
 ]
 
@@ -743,7 +745,7 @@ print separator
 print "LABEL SCAN PHASE"
 
 pass: 1
-unless parse program whitespace-vm-rule [
+parse program whitespace-vm-rule else [
     print "INVALID INPUT"
     quit
 ]
@@ -760,11 +762,11 @@ print separator
 ;
 
 pass: 2
-either parse program whitespace-vm-rule [
-    print "Program End Encountered"
-    print ["stack:" mold stack]
-    print ["callstack:" mold callstack]
-    print ["heap:" mold heap]
-][
+parse program whitespace-vm-rule else [
     print "UNEXPECTED TERMINATION (Internal Error)"
 ]
+
+print "Program End Encountered"
+print ["stack:" mold stack]
+print ["callstack:" mold callstack]
+print ["heap:" mold heap]
