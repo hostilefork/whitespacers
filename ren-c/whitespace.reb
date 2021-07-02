@@ -131,7 +131,7 @@ operation: enfixed func [
                 any [
                     all [  ; Whitespace operations can take `Number` or `Label`
                         block? pos.1
-                        parse? pos.1 [set sw set-word!, set t word!]
+                        uparse? pos.1 [sw: set-word!, t: word!]
                         find [Number Label] ^t
                         keep ^t
                         elide if not empty? groups [
@@ -528,7 +528,7 @@ lookup-label-offset: func [label [integer!]] [
 ; if the number rule matches, then param will contain the
 ; integer value of the decoded result
 Number: [
-    copy encoded [some [space | tab] lf] (
+    encoded: across [some [space | tab] lf] (
         param: whitespace-number-to-int encoded
     )
 ]
@@ -545,7 +545,7 @@ extended-debug-steps: true
 
 whitespace-vm-rule: [
     ; capture start of program
-    program-start: here
+    program-start: <here>
 
     ; initialize count
     (execution-steps: 0)
@@ -561,7 +561,7 @@ whitespace-vm-rule: [
             ]
         )
 
-        instruction-start: here  ;  current parse position is start address
+        instruction-start: <here>  ;  current parse position is start address
         [
             Stack-Manipulation.rule
             | Arithmetic.rule
@@ -570,7 +570,7 @@ whitespace-vm-rule: [
             | IO.rule
             | (fail "UNKNOWN OPERATION")
         ]
-        instruction-end: here  ; also capture position at the end of instruction
+        instruction-end: <here>  ; also capture position at end of instruction
 
         ; execute the VM code and optionally give us debug output
         (
@@ -650,7 +650,7 @@ whitespace-vm-rule: [
         )
 
         ; Set the parse position to whatever we set in the code above
-        seek :next-instruction
+        seek (next-instruction)
     ]
 ]
 
@@ -745,7 +745,7 @@ print separator
 print "LABEL SCAN PHASE"
 
 pass: 1
-parse program whitespace-vm-rule else [
+uparse program whitespace-vm-rule else [
     print "INVALID INPUT"
     quit
 ]
@@ -762,7 +762,7 @@ print separator
 ;
 
 pass: 2
-parse program whitespace-vm-rule else [
+uparse program whitespace-vm-rule else [
     print "UNEXPECTED TERMINATION (Internal Error)"
 ]
 
