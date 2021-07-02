@@ -81,13 +81,13 @@ category: func [
     ; We should really know which things are operations to ask them for their
     ; rule contribution.  But just assume any OBJECT! is an operation.
     ;
-    obj/rule: reduce [
-        obj/imp
+    obj.rule: reduce [
+        obj.imp
         collect [
             for-each [key val] obj [
                 if key == 'rule [continue]  ; what we're setting...
                 if object? val [
-                    keep val/rule
+                    keep val.rule
                     keep [|]
                 ]
             ]
@@ -130,8 +130,8 @@ operation: enfixed func [
             for-next pos next spec [
                 any [
                     all [  ; Whitespace operations can take `Number` or `Label`
-                        block? pos/1
-                        parse? pos/1 [set sw set-word!, set t word!]
+                        block? pos.1
+                        parse? pos.1 [set sw set-word!, set t word!]
                         find [Number Label] ^t
                         keep ^t
                         elide if not empty? groups [
@@ -141,22 +141,22 @@ operation: enfixed func [
                         append groups [(param)]
                     ]
                     all [  ; Words specifying the characters
-                        find [space tab lf] ^pos/1
-                        keep ^pos/1
+                        find [space tab lf] ^pos.1
+                        keep ^pos.1
                     ]
                     all [  ; If we hit a tag, assume we're starting FUNC spec
-                        tag? pos/1
+                        tag? pos.1
                         keep pos  ; keep all the rest (e.g. <local>, <static>)
                         break
                     ]
-                    fail ["Malformed operation parameter:" mold pos/1]
+                    fail ["Malformed operation parameter:" mold pos.1]
                 ]
             ]
         ]
 
         (elide group*: if not empty? args ['(param)])
 
-        ; for `push: operation ...` this will be `push/push`, reasoning above
+        ; for `push: operation ...` this will be `push.push`, reasoning above
         ;
         ; !!! We add RETURN NULL here to make that the default if a jump
         ; address is not returned.  However, using a return value may not be
@@ -563,11 +563,11 @@ whitespace-vm-rule: [
 
         instruction-start: here  ;  current parse position is start address
         [
-            Stack-Manipulation/rule
-            | Arithmetic/rule
-            | Heap-Access/rule
-            | Flow-Control/rule
-            | IO/rule
+            Stack-Manipulation.rule
+            | Arithmetic.rule
+            | Heap-Access.rule
+            | Flow-Control.rule
+            | IO.rule
             | (fail "UNKNOWN OPERATION")
         ]
         instruction-end: here  ; also capture position at the end of instruction
@@ -613,7 +613,7 @@ whitespace-vm-rule: [
 
             ; !!! Furthering the hackishness of the moment, we bind to an
             ; action in the object with a field name the same as the word.
-            ; So `push/push`, or `add/add`.  See OPERATION for a description
+            ; So `push.push`, or `add.add`.  See OPERATION for a description
             ; of why we're doing this for now.
             ;
             word: non null in get word word
