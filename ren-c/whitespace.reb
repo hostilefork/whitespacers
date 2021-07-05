@@ -1,12 +1,12 @@
 Rebol [
-    Title: "Whitespace Intepreter"
+    Title: "Whitespace Interpreter"
     Purpose: "Whitespace Language Written as a Rebol 3 Parse Dialect"
 
     Author: "Hostile Fork"
     Home: http://github.com/hostilefork/whitespacers/
     License: 'mit
 
-    File: %whitespace.r
+    File: %whitespace.reb
     Date: 10-Jul-2010
     Version: 0.2.0
 
