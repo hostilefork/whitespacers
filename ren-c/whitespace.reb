@@ -34,6 +34,10 @@ Rebol [
     ]
 ]
 
+print "This project has moved!  You are running outdated code!"
+print "Please see: https://github.com/hostilefork/rebol-whitespacers"
+wait 5
+
 ;
 ; WHITESPACER IMPLEMENTATION DIALECT
 ;
